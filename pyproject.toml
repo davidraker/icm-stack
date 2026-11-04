@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "icmstack"
+version = "0.1.0"
+description = "Install, start and stop the interoperability control framework and its test devices from one command line"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dependencies = ["tomli>=2; python_version < '3.11'"]
+
+[project.optional-dependencies]
+devices = ["umodbus>=1.0", "pymodbus>=3.6", "paho-mqtt>=2", "protobuf>=4", "cryptography>=42"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+icmstack = "icmstack.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+icmstack = ["data/registries/*.csv", "data/service/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

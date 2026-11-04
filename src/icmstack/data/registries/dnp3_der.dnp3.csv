@@ -1,0 +1,128 @@
+point_name,volttron_point_name,object_group,variation,index,scaling,units,writable,data_source,transform,notes
+DGEN.VMinRtg,AI_2,30,6,2,1,Volts,FALSE,poll_once,,Nameplate Minimum Voltage Rating
+DGEN.VMaxRtg,AI_3,30,6,3,1,Volts,FALSE,poll_once,,Nameplate Maximum Voltage Rating
+DGEN.WMaxRtg,AI_4,30,6,4,1,Watts,FALSE,poll_once,,Nameplate Active Generation Power Rating at Unity Power Factor
+DGEN.WOvPFRtg,AI_6,30,6,6,1,Watts,FALSE,poll_once,,"Nameplate Active Generation Power Rating at Specified Over-Excited Power Factor, injecting reactive power (as positive vars)"
+DGEN.OvPFRtg,AI_8,30,6,8,1,None,FALSE,short_poll,,Specified Over-Excited Power Factor
+DGEN.WUnPFRtg,AI_9,30,6,9,1,Watts,FALSE,poll_once,,"Nameplate Active Generation Power Rating at Specified Under-Excited Power Factor, absorbing reactive power (as negative vars)"
+DSTO.ChaWUnPFRtg,AI_10,30,6,10,1,Watts,FALSE,poll_once,,Nameplate Active Charging Power Rating at Specified Under-Excited Power Factor
+DGEN.UnPFRtg,AI_11,30,6,11,1,None,FALSE,short_poll,,Specified Under-Excited Power Factor
+DGEN.IvarMaxRtg,AI_12,30,6,12,1,Vars,FALSE,poll_once,,Nameplate Reactive Supply (Injection) Power Rating
+DGEN.AvarMaxRtg,AI_13,30,6,13,1,Vars,FALSE,poll_once,,Nameplate Reactive Absorption Power Rating
+DSTO.ChaVAMaxRtg,AI_15,30,6,15,1,VAs,FALSE,poll_once,,Nameplate Apparent Charging Power Rating
+DSTO.WhRtg,AI_16,30,6,16,1,Amp-hrs or Watt-hrs,FALSE,poll_once,,Nameplate Storage Actual Energy Capacity
+DGEN.SuscRtg,AI_21,30,6,21,1,Siemens,FALSE,short_poll,,Remaining Reactive Susceptance
+DGEN.RegClas.1,AI_22,30,6,22,1,Enum,FALSE,short_poll,,IEEE 1547 Normal Operating Performance Category
+DGEN.RegClas.2,AI_23,30,6,23,1,Enum,FALSE,short_poll,,IEEE 1547 Abnormal Operating Performance Category
+DECP.VRef,AI_29,30,6,29,1,Volts,FALSE,short_poll,,Reference Voltage
+DECP.VRefOfs,AI_30,30,6,30,1,Volts,FALSE,short_poll,,Reference Voltage Offset
+DGEN.WMax,AI_32,30,6,32,1,Watts,FALSE,short_poll,,Maximum Active Generation Power
+DGEN.IvarMax,AI_34,30,6,34,1,Vars,FALSE,short_poll,,Maximum Reactive Injection Power
+DGEN.AvarMax,AI_35,30,6,35,1,Vars,FALSE,short_poll,,Maximum Reactive Absorption Power
+DSTO.UseSocPct,AI_48,30,6,48,1,Percent,FALSE,short_poll,,System Usable State of Charge
+DHFW1.HzStr,AI_121,30,6,121,1,Hz,FALSE,short_poll,,Frequency-Watt High Starting Frequency
+DHFW1.WGra,AI_123,30,6,123,1,Percent watts per percent Hz difference,FALSE,short_poll,,Frequency-Watt High Discharging / Generating Gradient
+DLFW1.HzStr,AI_125,30,6,125,1,Hz,FALSE,short_poll,,Frequency-Watt Low Starting Frequency
+DLFW1.WGra,AI_127,30,6,127,1,Percent watts per percent Hz difference,FALSE,short_poll,,Frequency-Watt Low Discharging / Generating Gradient
+DLFW1.OplTmsMax.1,AI_131,30,6,131,1,Seconds,FALSE,short_poll,,Frequency-Watt Ramp Up Time Constant
+DHFW1.OplTmsMax.2,AI_132,30,6,132,1,Seconds,FALSE,short_poll,,Frequency-Watt Ramp Down Time Constant
+DWMX.WLimPct,AI_148,30,6,148,1,Percent of WMax,FALSE,short_poll,,"Active Power Limit Maximum (Pos = Generation, Neg = Consumption)"
+DWMN.WLimPct,AI_149,30,6,149,1,Percent of WMax,FALSE,short_poll,,"Active Power Limit Minimum (Pos = Generation, Neg = Consumption)"
+DVWC1.EcpRef,AI_246,30,6,246,1,n/a,FALSE,short_poll,,Volt-Watt Signal Meter ID
+DVWC1.MMXN.Vol,AI_247,30,6,247,1,Volts,FALSE,short_poll,,Volt-Watt Reference Voltage Input
+DVWC1.VWCrv,AI_248,30,6,248,1,n/a,FALSE,short_poll,,Volt-Watt Curve Index
+DVAR.VArTgtPct,AI_281,30,6,281,1,Percent,FALSE,short_poll,,Constant VArs Reactive Power Target
+DFPF.PFGnTgt,AI_288,30,6,288,1,None,FALSE,short_poll,,Constant Power Factor Setpoint - Generation / Discharging
+DGSMn.InCrv,AI_328,30,6,328,1,n/a,FALSE,short_poll,,Curve Edit Selector
+SYS.MMXU.Hz,AI_536,30,6,536,1,Hz,FALSE,short_poll,,System Meter Frequency
+SYS.MMXU.TotW,AI_537,30,6,537,1,Watts,FALSE,short_poll,,System Meter Active Power
+SYS.MMXU.TotVAr,AI_541,30,6,541,1,Vars,FALSE,short_poll,,System Meter Reactive Power
+SYS.MMXU.PhV.phsA.mag,AI_547,30,6,547,1,Volts,FALSE,short_poll,,System Meter Phase A Volts
+SYS.MMXU.PhV.phsA.ang,AI_548,30,6,548,1,Degrees,FALSE,short_poll,,System Meter Phase A Angle
+SYS.MMXU.PhV.phsB.mag,AI_549,30,6,549,1,Volts,FALSE,short_poll,,System Meter Phase B Volts
+SYS.MMXU.PhV.phsB.ang,AI_550,30,6,550,1,Degrees,FALSE,short_poll,,System Meter Phase B Angle
+SYS.MMXU.PhV.phsC.mag,AI_551,30,6,551,1,Volts,FALSE,short_poll,,System Meter Phase C Volts
+SYS.MMXU.PhV.phsC.ang,AI_552,30,6,552,1,Degrees,FALSE,short_poll,,System Meter Phase C Angle
+SYS.MMXU.AvPPVPhs,AI_553,30,6,553,1,Volts,FALSE,short_poll,,System Meter Average Line to Line Voltage
+SYS.MMXU.A.phsA.mag,AI_554,30,6,554,1,Amps,FALSE,short_poll,,System Meter Current A
+SYS.MMXU.A.phsB.mag,AI_555,30,6,555,1,Amps,FALSE,short_poll,,System Meter Current B
+SYS.MMXU.A.phsC.mag,AI_556,30,6,556,1,Amps,FALSE,short_poll,,System Meter Current C
+DHFW3.WGra,AI_590,30,6,590,1,W per Hz,FALSE,short_poll,,Frequency-Watt Droop High Discharging / Generating Gradient
+DLFW3.WGra,AI_591,30,6,591,1,W per Hz,FALSE,short_poll,,Frequency-Watt Droop Low Discharging / Generating Gradient
+DHFW3.WMin,AI_592,30,6,592,1,Watts,FALSE,short_poll,,High Frequency-Watt Droop Minimum Active Power
+DLFW3.WMax,AI_593,30,6,593,1,Watts,FALSE,short_poll,,Low Frequency-Watt Droop Maximum Active Power
+DWMX.WLimSpt,AI_619,30,6,619,1,Watts,FALSE,short_poll,,"Active Power Limit Maximum (Pos = Generation, Neg = Consumption)"
+DWMN.WLimSpt,AI_620,30,6,620,1,Watts,FALSE,short_poll,,"Active Power Limit Minimum (Pos = Generation, Neg = Consumption)"
+DVAR.DVar.Tgt,AI_621,30,6,621,1,Vars,FALSE,short_poll,,Constant Vars using vars as unit
+LCCH1.ChLiv,BI_0,1,2,0,1,,FALSE,short_poll,,System Communication Error
+CALH.GrAlm,BI_1,1,2,1,1,,FALSE,short_poll,,System Has Priority 1 Alarms
+DGEN.DEROpSt.disconnectedandavailable,BI_21,1,2,21,1,,FALSE,short_poll,,DER is Off but Available to Start
+DGEN.DEROpSt.disconnectedandblocked,BI_22,1,2,22,1,,FALSE,short_poll,,DER is Off and Not Available to Start
+DHVT,BI_31,1,2,31,1,,FALSE,poll_once,,Supports Low/High Voltage Ride-Through Mode
+DHFT,BI_32,1,2,32,1,,FALSE,poll_once,,Supports Low/High Frequency Ride-Through Mode
+DHFW,BI_35,1,2,35,1,,FALSE,poll_once,,Supports Frequency-Watt Mode
+DWMX,BI_36,1,2,36,1,,FALSE,poll_once,,Supports Active Power Limit Mode
+DVWC,BI_44,1,2,44,1,,FALSE,poll_once,,Supports Volt-Watt Mode
+DVAR,BI_46,1,2,46,1,,FALSE,poll_once,,Supports Constant VArs Mode
+DFPF,BI_47,1,2,47,1,,FALSE,poll_once,,Supports Constant Power Factor Mode
+DVVR,BI_48,1,2,48,1,,FALSE,poll_once,,Supports Volt-VAr Control Mode
+DWVR,BI_49,1,2,49,1,,FALSE,poll_once,,Supports Watt-VAr Mode
+DWMX.Mod,BI_69,1,2,69,1,,FALSE,short_poll,,Operating Mode - Active Power Limit Enabled
+DVWC.Mod,BI_77,1,2,77,1,,FALSE,short_poll,,Operating Mode - Volt-Watt Enabled
+DVAR.Mod,BI_79,1,2,79,1,,FALSE,short_poll,,Operating Mode - Constant VArs Enabled
+DFPF.Mod,BI_80,1,2,80,1,,FALSE,short_poll,,Operating Mode - Constant Power Factor Enabled
+DVVR.Mod,BI_81,1,2,81,1,,FALSE,short_poll,,Operating Mode - Volt-VAR Control Enabled
+DWVR.Mod,BI_82,1,2,82,1,,FALSE,short_poll,,Operating Mode - Watt-VAr Enabled
+DHVT.PTOV1.BlkRef,AO_23,40,1,23,1,n/a,TRUE,short_poll,,Low/High Voltage Ride-Through High Must Trip Curve Index
+DLVT.PTUV1.BlkRef,AO_24,40,1,24,1,n/a,TRUE,short_poll,,Low/High Voltage Ride-Through Low Must Trip Curve Index
+DHVT.PTOV2.BlkRef,AO_25,40,1,25,1,n/a,TRUE,short_poll,,Low/High Voltage Ride-Through High Momentary Cessation Curve Index
+DLVT.PTUV2.BlkRef,AO_26,40,1,26,1,n/a,TRUE,short_poll,,Low/High Voltage Ride-Through Low Momentary Cessation Curve Index
+DHFT.PTOF1.BlkRef,AO_28,40,1,28,1,n/a,TRUE,short_poll,,Low/High Frequency Ride-Through High Must Trip Curve Index
+DLFT.PTUF1.BlkRef,AO_29,40,1,29,1,n/a,TRUE,short_poll,,Low/High Frequency Ride-Through Low Must Trip Curve Index
+DHFW1.HzStr,AO_62,40,1,62,1,Hz,TRUE,short_poll,,Frequency-Watt High Starting Frequency
+DHFW1.WGra,AO_64,40,1,64,1,Percent watts per percent Hz difference,TRUE,short_poll,,Frequency-Watt High Discharging / Generating Gradient
+DLFW1.HzStr,AO_66,40,1,66,1,Hz,TRUE,short_poll,,Frequency-Watt Low Starting Frequency
+DLFW1.WGra,AO_68,40,1,68,1,Percent watts per percent Hz difference,TRUE,short_poll,,Frequency-Watt Low Discharging / Generating  Gradient
+DHFW1.OplTmsMax.1,AO_72,40,1,72,1,Seconds,TRUE,short_poll,,Frequency-Watt Ramp Up Time Constant
+DHFW1.OplTmsMax.2,AO_73,40,1,73,1,Seconds,TRUE,short_poll,,Frequency-Watt Ramp Down Time Constant
+DWMX.WLimPct,AO_87,40,1,87,1,Percent of WMax,TRUE,short_poll,,"Active Power Limit Maximum (Pos = Generation, Neg = Consumption)"
+DWMN.WLimPct,AO_88,40,1,88,1,Percent of WMax,TRUE,short_poll,,"Active Power Limit Minimum (Pos = Generation, Neg = Consumption)"
+DVWC.VWCrv,AO_173,40,1,173,1,n/a,TRUE,short_poll,,Volt-Watt Curve Index
+DVWC.OplTmsMax.1,AO_175,40,1,175,1,Seconds,TRUE,short_poll,,Volt-Watt Ramp Up Time Constant
+DVWC.OplTmsMax.2,AO_176,40,1,176,1,Seconds,TRUE,short_poll,,Volt-Watt Ramp Down Time Constant
+DVAR.VArTgtPct,AO_203,40,1,203,1,Percent,TRUE,short_poll,,Constant Vars Reactive Power Target
+DFPF.PFGnTgt,AO_210,40,1,210,1,None,TRUE,short_poll,,Constant Power Factor Setpoint - Generation/Discharging
+DFPF.PFLodTgt,AO_211,40,1,211,1,None,TRUE,short_poll,,Constant Power Factor Setpoint - Charging
+DVVR.VVArCrv,AO_217,40,1,217,1,n/a,TRUE,short_poll,,Volt-Var Curve Index
+DVVR.VRefTmms,AO_220,40,1,220,1,Seconds,TRUE,short_poll,,Volt-Var Autonomous Voltage Reference Adjustment Time Constant
+DGSMn.InCrv,AO_244,40,1,244,1,n/a,TRUE,short_poll,,Curve Edit Selector
+DGSMn.ModTyp,AO_245,40,1,245,1,Enum,TRUE,short_poll,,Curve Type
+FMARn.PairArr.NumPts,AO_246,40,1,246,1,n/a,TRUE,short_poll,,Curve Number of Points
+FMARn.IndpUnits,AO_247,40,1,247,1,Enum,TRUE,short_poll,,Independent (X-Value) Units for Curve
+FMARn.DepRef,AO_248,40,1,248,1,Enum,TRUE,short_poll,,Dependent (Y-Value) Units for Curve
+FMARn.PairArr.CrvPts.1.xVal,AO_249,40,1,249,1,Varies,TRUE,short_poll,,Curve Point 1 X-Value
+FMARn.PairArr.CrvPts.1.yVal,AO_250,40,1,250,1,Varies,TRUE,short_poll,,Curve Point 1 Y-Value
+FMARn.PairArr.CrvPts.2.xVal,AO_251,40,1,251,1,Varies,TRUE,short_poll,,Curve Point 2 X-Value
+FMARn.PairArr.CrvPts.2.yVal,AO_252,40,1,252,1,Varies,TRUE,short_poll,,Curve Point 2 Y-Value
+FMARn.PairArr.CrvPts.3.xVal,AO_253,40,1,253,1,Varies,TRUE,short_poll,,Curve Point 3 X-Value
+FMARn.PairArr.CrvPts.3.yVal,AO_254,40,1,254,1,Varies,TRUE,short_poll,,Curve Point 3 Y-Value
+FMARn.PairArr.CrvPts.4.xVal,AO_255,40,1,255,1,Varies,TRUE,short_poll,,Curve Point 4 X-Value
+FMARn.PairArr.CrvPts.4.yVal,AO_256,40,1,256,1,Varies,TRUE,short_poll,,Curve Point 4 Y-Value
+DHFW3.WGra,AO_480,40,1,480,1,W per Hz,TRUE,short_poll,,High Frequency-Watt Droop Upper Gradient
+DLFW3.WGra,AO_481,40,1,481,1,W per Hz,TRUE,short_poll,,Low Frequency-Watt Droop Lower Gradient
+DHFW3.WMin,AO_482,40,1,482,1,Watts,TRUE,short_poll,,High Frequency-Watt Droop Minimum Active Power
+DLFW3.WMax,AO_483,40,1,483,1,Watts,TRUE,short_poll,,Low Frequency-Watt Droop Maximum Active Power
+DWMX.WLimSpt,AO_509,40,1,509,1,Watts,TRUE,short_poll,,"Active Power Limit Maximum (Pos = Generation, Neg = Consumption)"
+DWMN.WLimSpt,AO_510,40,1,510,1,Watts,TRUE,short_poll,,"Active Power Limit Minimum (Pos = Generation, Neg = Consumption)"
+DVAR.DVar.Tgt,AO_511,40,1,511,1,Vars,TRUE,short_poll,,Constant Vars using vars as unit
+DGEN.PrmConn,BO_3,10,2,3,1,,TRUE,short_poll,,System Permission to Start
+DWMX.Mod,BO_17,10,2,17,1,,TRUE,short_poll,,Enable Active Power Limit Mode
+DVWC.Mod,BO_25,10,2,25,1,,TRUE,short_poll,,Enable Volt-Watt Mode
+DVAR.Mod,BO_27,10,2,27,1,,TRUE,short_poll,,Enable Constant Vars Mode
+DFPF.Mod,BO_28,10,2,28,1,,TRUE,short_poll,,Enable Constant Power Factor Mode
+DVVR.Mod,BO_29,10,2,29,1,,TRUE,short_poll,,Enable Volt-Var Control Mode
+DVVR.VRefAdjEna,BO_41,10,2,41,1,,TRUE,short_poll,,Volt-Var Enable Autonomous Voltage Reference Adjustment
+HM1MMTR.SupWh,CTR_5000,20,1,5000,1,,FALSE,short_poll,,Meter #1 Active Energy Delivered
+HM1MMTR.DmdWh,CTR_5001,20,1,5001,1,,FALSE,short_poll,,Meter #1 Active Energy Received
+HM1MMTR.SupVArh,CTR_5002,20,1,5002,1,,FALSE,short_poll,,Meter #1 Reactive Energy Delivered
+HM1MMTR.DmdVArh,CTR_5003,20,1,5003,1,,FALSE,short_poll,,Meter #1 Reactive Energy Received

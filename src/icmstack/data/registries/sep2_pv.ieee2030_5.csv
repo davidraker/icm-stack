@@ -1,0 +1,78 @@
+volttron_point_name,path,writable,data_source,multiplier,scaling,units,starting_value,notes
+DERCapability_modesSupported,DERCapability.modesSupported,TRUE,short_poll,0,1,,0,via sunspec > 2030.5
+DERCapability_rtgAbnormalCategory,DERCapability.rtgAbnormalCategory,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERCapability_rtgMaxA,DERCapability.rtgMaxA,TRUE,short_poll,0,1,A,,via sunspec > 2030.5
+DERCapability_rtgMaxChargeRateVA,DERCapability.rtgMaxChargeRateVA,TRUE,short_poll,0,1,VA,,via sunspec > 2030.5
+DERCapability_rtgMaxChargeRateW,DERCapability.rtgMaxChargeRateW,TRUE,short_poll,0,1,W,,via sunspec > 2030.5
+DERCapability_rtgMaxV,DERCapability.rtgMaxV,TRUE,short_poll,0,1,V,,via sunspec > 2030.5
+DERCapability_rtgMaxVA,DERCapability.rtgMaxVA,TRUE,short_poll,0,1,VA,,via sunspec > 2030.5
+DERCapability_rtgMaxVar,DERCapability.rtgMaxVar,TRUE,short_poll,0,1,var,,via sunspec > 2030.5
+DERCapability_rtgMaxVarNeg,DERCapability.rtgMaxVarNeg,TRUE,short_poll,0,1,var,,via sunspec > 2030.5
+DERCapability_rtgMaxW,DERCapability.rtgMaxW,TRUE,short_poll,0,1,W,0,via sunspec > 2030.5
+DERCapability_rtgMaxWh,DERCapability.rtgMaxWh,TRUE,short_poll,0,1,Wh,,via sunspec > 2030.5
+DERCapability_rtgMinV,DERCapability.rtgMinV,TRUE,short_poll,0,1,V,,via sunspec > 2030.5
+DERCapability_rtgNormalCategory,DERCapability.rtgNormalCategory,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERCapability_rtgOverExcitedPF,DERCapability.rtgOverExcitedPF,TRUE,short_poll,0,1,PF,,via sunspec > 2030.5
+DERCapability_rtgOverExcitedW,DERCapability.rtgOverExcitedW,TRUE,short_poll,0,1,W,,via sunspec > 2030.5
+DERCapability_rtgReactiveSusceptance,DERCapability.rtgReactiveSusceptance,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERCapability_rtgUnderExcitedPF,DERCapability.rtgUnderExcitedPF,TRUE,short_poll,0,1,PF,,via sunspec > 2030.5
+DERCapability_rtgUnderExcitedW,DERCapability.rtgUnderExcitedW,TRUE,short_poll,0,1,W,,via sunspec > 2030.5
+DERCapability_rtgVNom,DERCapability.rtgVNom,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERSettings_setESDelay,DERSettings.setESDelay,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERSettings_setESHighFreq,DERSettings.setESHighFreq,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERSettings_setESHighVolt,DERSettings.setESHighVolt,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERSettings_setESLowFreq,DERSettings.setESLowFreq,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERSettings_setESLowVolt,DERSettings.setESLowVolt,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERSettings_setESRampTms,DERSettings.setESRampTms,TRUE,short_poll,0,1,ms,,via sunspec > 2030.5
+DERSettings_setESRandomDelay,DERSettings.setESRandomDelay,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERSettings_setMaxChargeRateVA,DERSettings.setMaxChargeRateVA,TRUE,short_poll,0,1,VA,,via sunspec > 2030.5
+DERSettings_setMaxChargeRateW,DERSettings.setMaxChargeRateW,TRUE,short_poll,0,1,W,,via sunspec > 2030.5
+DERSettings_setMaxV,DERSettings.setMaxV,TRUE,short_poll,0,1,V,,via sunspec > 2030.5
+DERSettings_setMaxVA,DERSettings.setMaxVA,TRUE,short_poll,0,1,VA,,via sunspec > 2030.5
+DERSettings_setMaxVar,DERSettings.setMaxVar,TRUE,short_poll,0,1,var,,via sunspec > 2030.5
+DERSettings_setMaxVarNeg,DERSettings.setMaxVarNeg,TRUE,short_poll,0,1,var,,via sunspec > 2030.5
+DERSettings_setMaxW,DERSettings.setMaxW,TRUE,short_poll,0,1,W,0,via sunspec > 2030.5
+DERSettings_setMinV,DERSettings.setMinV,TRUE,short_poll,0,1,V,,via sunspec > 2030.5
+DERSettings_setVNom,DERSettings.setVNom,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERStatus_alarmStatus,DERStatus.alarmStatus,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERStatus_connectStatus,DERStatus.connectStatus,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERStatus_operationalModeStatus,DERStatus.operationalModeStatus,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DERStatus_stateOfChargeStatus,DERStatus.stateOfChargeStatus,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DeviceInformation_mfID,DeviceInformation.mfID,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DeviceInformation_mfModel,DeviceInformation.mfModel,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DeviceInformation_mfSerNum,DeviceInformation.mfSerNum,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+DeviceInformation_swVer,DeviceInformation.swVer,TRUE,short_poll,0,1,,,via sunspec > 2030.5
+MirrorMeterReading_Hz,MirrorMeterReading.Hz,TRUE,short_poll,,1,Hz,,via sunspec > 2030.5
+MirrorMeterReading_V_PhaseA,MirrorMeterReading.V.PhaseA,TRUE,short_poll,,1,V,,via sunspec > 2030.5
+MirrorMeterReading_V_PhaseAB,MirrorMeterReading.V.PhaseAB,TRUE,short_poll,,1,V,,via sunspec > 2030.5
+MirrorMeterReading_V_PhaseB,MirrorMeterReading.V.PhaseB,TRUE,short_poll,,1,V,,via sunspec > 2030.5
+MirrorMeterReading_V_PhaseBC,MirrorMeterReading.V.PhaseBC,TRUE,short_poll,,1,V,,via sunspec > 2030.5
+MirrorMeterReading_V_PhaseC,MirrorMeterReading.V.PhaseC,TRUE,short_poll,,1,V,,via sunspec > 2030.5
+MirrorMeterReading_V_PhaseCA,MirrorMeterReading.V.PhaseCA,TRUE,short_poll,,1,V,,via sunspec > 2030.5
+MirrorMeterReading_W,MirrorMeterReading.W,TRUE,short_poll,,1,W,,via sunspec > 2030.5
+MirrorMeterReading_var,MirrorMeterReading.var,TRUE,short_poll,,1,var,,via sunspec > 2030.5
+DERControl_opModEnergize,DERControl.opModEnergize,FALSE,short_poll,,1,,,via 2030.5 > sunspec
+DERControl_opModFixedPFAbsorbW_displacement,DERControl.opModFixedPFAbsorbW.displacement,FALSE,short_poll,,1,,,via 2030.5 > sunspec
+DERControl_opModFixedPFAbsorbW_excitation,DERControl.opModFixedPFAbsorbW.excitation,FALSE,short_poll,,1,,,via 2030.5 > sunspec
+DERControl_opModFixedPFInjectW_displacement,DERControl.opModFixedPFInjectW.displacement,FALSE,short_poll,,1,,,via 2030.5 > sunspec
+DERControl_opModFixedPFInjectW_excitation,DERControl.opModFixedPFInjectW.excitation,FALSE,short_poll,,1,,,via 2030.5 > sunspec
+DERControl_opModFixedVar,DERControl.opModFixedVar,FALSE,short_poll,,1,var,,via 2030.5 > sunspec
+DERControl_opModMaxLimW,DERControl.opModMaxLimW,FALSE,short_poll,,1,% x100,,via 2030.5 > sunspec
+DERControl_opModTargetVar,DERControl.opModTargetVar,FALSE,short_poll,,1,var,,via 2030.5 > sunspec
+DERControlList,DERControlList,FALSE,short_poll,,1,,,via schedules of the server programs
+DERCurve_opModHFRTMustTrip_CurveData,DERCurve.opModHFRTMustTrip.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCurve_opModHVRTMomentaryCessation_CurveData,DERCurve.opModHVRTMomentaryCessation.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCurve_opModHVRTMustTrip_CurveData,DERCurve.opModHVRTMustTrip.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCurve_opModLFRTMustTrip_CurveData,DERCurve.opModLFRTMustTrip.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCurve_opModLVRTMomentaryCessation_CurveData,DERCurve.opModLVRTMomentaryCessation.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCurve_opModLVRTMustTrip_CurveData,DERCurve.opModLVRTMustTrip.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCurve_opModVoltVar_CurveData,DERCurve.opModVoltVar.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCurve_opModVoltVar_autonomousVRefEnable,DERCurve.opModVoltVar.autonomousVRefEnable,FALSE,short_poll,,1,,,via 2030.5 > sunspec
+DERCurve_opModVoltVar_autonomousVRefTimeConstant,DERCurve.opModVoltVar.autonomousVRefTimeConstant,FALSE,short_poll,,1,,,via 2030.5 > sunspec
+DERCurve_opModVoltVar_openLoopTms,DERCurve.opModVoltVar.openLoopTms,FALSE,short_poll,,1,ms,,via 2030.5 > sunspec
+DERCurve_opModVoltVar_vRef,DERCurve.opModVoltVar.vRef,FALSE,short_poll,,1,,,via 2030.5 > sunspec
+DERCurve_opModVoltWatt_CurveData,DERCurve.opModVoltWatt.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCurve_opModVoltWatt_openLoopTms,DERCurve.opModVoltWatt.openLoopTms,FALSE,short_poll,,1,ms,,via 2030.5 > sunspec
+DERCurve_opModWattVar_CurveData,DERCurve.opModWattVar.CurveData,FALSE,short_poll,,1,,,"via 2030.5 > sunspec, fidelity 0.30"
+DERCapability_type,DERCapability.type,TRUE,short_poll,0,1,,83,required by the schema; not supplied by the device
+DERSettings_setGradW,DERSettings.setGradW,TRUE,short_poll,0,1,% x100/s,100,required by the schema; not supplied by the device

@@ -1,0 +1,8 @@
+volttron_point_name,address,data_type,table,writable,units,description
+ReturnAirCO2,1001,float32,input,FALSE,ppm,CO2 reading (412.5)
+Temp,1010,int16,input,FALSE,degC,Temperature (-7)
+CO2Stpt,1003,float32,holding,TRUE,ppm,CO2 setpoint (1000.0)
+Name,1005,string[6],holding,TRUE,,Unit name (RTU-7)
+Mode,1010,uint16,holding,TRUE,,Operating mode (3)
+FanStatus,3,bool,discrete_input,FALSE,On/Off,Fan running
+FanCmd,5,bool,coil,TRUE,On/Off,Fan command

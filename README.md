@@ -50,5 +50,7 @@ Run the tests with `pytest` after `pip install -e '.[dev]'`.
 directory holding the interoperability repositories, `icm-utils` among them. The shared libraries the agents import
 (`icm-lib-transforms`, `icm-lib-resources` and the `icm-lib-models-*` packages) are then installed editable from
 `icm-utils` and recorded as path dependencies of the platform's own poetry project, so the platform can resolve the
-agents' requirements on them before any release exists. A platform home created earlier gets those entries on the next
-start and re-locks its project.
+agents' requirements on them before any release exists. The project mirrors the environment: when the two differ (a
+platform home created earlier, a switch to another venv, upgraded packages) the project is written again on the next
+start and re-locked. The installed state is per environment too, so after a venv switch `up` installs everything into
+the new one.

@@ -88,6 +88,11 @@ class Profile:
             items.append(name)
         if not installed and name in items:
             items.remove(name)
+        where = self.state.setdefault('installed_in', {})
+        if installed:
+            where[name] = self.answers.get('venv', '')
+        else:
+            where.pop(name, None)
         self.save()
 
     def mark_started(self, name: str, started: bool = True) -> None:
@@ -99,7 +104,12 @@ class Profile:
         self.save()
 
     def is_installed(self, name: str) -> bool:
-        return name in self.state['installed']
+        """Installed into the environment the profile names now. A component installed when another venv was the
+        answer (or by a version of the tool that did not record it) is installed again, so a venv switch does not leave
+        the platform or an agent missing from the new environment."""
+        if name not in self.state['installed']:
+            return False
+        return self.state.get('installed_in', {}).get(name) == self.answers.get('venv', '')
 
     @classmethod
     def existing(cls, root: Path | None = None) -> list[str]:

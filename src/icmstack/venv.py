@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 PLATFORM_PACKAGES = ['volttron-core', 'volttron-lib-zmq', 'volttron-lib-auth', 'volttron-lib-web']
@@ -53,6 +54,18 @@ for dist in metadata.distributions():
         found[dist.metadata['Name'].lower().replace('_', '-')] = info['url'].removeprefix('file://')
 print(json.dumps(found))
 '''
+
+
+def same_dependencies(project_a: str, project_b: str) -> bool:
+    """Whether two poetry projects declare the same dependencies (names, pins, paths), whatever their formatting."""
+    def deps(text):
+        try:
+            table = tomllib.loads(text).get('tool', {}).get('poetry', {}).get('dependencies', {})
+        except tomllib.TOMLDecodeError:
+            return None
+        return {k.lower().replace('_', '-'): v for k, v in table.items()}
+    a, b = deps(project_a), deps(project_b)
+    return a is not None and a == b
 
 
 def add_path_dependencies(pyproject: Path, projects: dict[str, str]) -> list[str]:

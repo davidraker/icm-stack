@@ -337,20 +337,24 @@ def test_install_reinstalls_an_installed_component(stack):
     assert (stack['venv'] / 'pip.log').read_text().count('platform-driver') == before + 1       # start does not
 
 
-def test_stale_platform_project_learns_the_library_checkouts_before_start(stack, monkeypatch):
-    """A home whose poetry project predates the agents' requirements on the unreleased libraries: in checkout mode the
-    start installs the library checkouts editable, records every editable install as a path dependency, and drops
-    the lock so the platform re-locks. Otherwise the platform's own ``poetry lock`` fails on icm-lib-resources."""
+def test_stale_platform_project_is_rewritten_from_the_environment_before_start(stack, monkeypatch):
+    """A home whose poetry project predates the agents' requirements on the unreleased libraries, or belongs to another
+    venv: in checkout mode the start installs the library checkouts editable, writes the project again from the
+    environment and drops the lock so the platform re-locks. Otherwise the platform's own ``poetry lock`` fails on
+    icm-lib-resources. A project that already matches the environment keeps its lock."""
     from icmstack.components.platform_modular import Platform
     modules = stack['root'] / 'modules'
     for sub in ('icm-utils/icm-lib-transforms', 'icm-utils/icm-lib-resources'):
         (modules / sub).mkdir(parents=True)
     monkeypatch.setenv('ICM_MODULES', str(modules))
-    editable = {'volttron-message-bus-adapter': f'{modules}/message-bus-adapter', 'icm-lib-transforms': f'{modules}/icm-utils/icm-lib-transforms'}
-    monkeypatch.setattr('icmstack.venv.PlatformEnv.editable_projects', lambda self: dict(editable))
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.editable_projects', lambda self: {'icm-lib-transforms': f'{modules}/icm-utils/icm-lib-transforms'})
+    fresh = ('[tool.poetry]\nname = "volttron"\npackage-mode = false\n\n[tool.poetry.dependencies]\npython = "~3.11.13"\n'
+             f'"icm-lib-transforms" = {{path = "{modules}/icm-utils/icm-lib-transforms", develop = true}}\n'
+             f'"volttron-message-bus-adapter" = {{path = "{modules}/message-bus-adapter", develop = true}}\n"attrs" = "26.1.0"\n')
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.poetry_project', lambda self, exclude=(): fresh)
     home = stack['home']; home.mkdir(parents=True)
-    (home / 'pyproject.toml').write_text('[tool.poetry]\nname = "volttron"\npackage-mode = false\n\n[tool.poetry.dependencies]\npython = "~3.11"\n'
-                                         f'"volttron-message-bus-adapter" = {{path = "{modules}/message-bus-adapter", develop = true}}\n"icm-lib-transforms" = "0.0.9"\n"attrs" = "26.1.0"\n')
+    (home / 'pyproject.toml').write_text('[tool.poetry]\nname = "volttron"\npackage-mode = false\n\n[tool.poetry.dependencies]\npython = "~3.11.13"\n'
+                                         f'"volttron-message-bus-adapter" = {{path = "{modules}/message-bus-adapter", develop = true}}\n"attrs" = "26.1.0"\n')
     (home / 'poetry.lock').write_text('stale')
     profile = Profile('default', root=stack['root']); profile.answers.update({'venv': str(stack['venv']), 'volttron_home': str(home), 'agent_source': 'checkout', 'instance_name': 'icmtest'}); profile.save()
     out = []
@@ -359,14 +363,48 @@ def test_stale_platform_project_learns_the_library_checkouts_before_start(stack,
         Platform().start(ctx, timeout=60)
     finally:
         Platform().stop(ctx)
-    text = (home / 'pyproject.toml').read_text()
-    assert f'"icm-lib-transforms" = {{path = "{modules}/icm-utils/icm-lib-transforms", develop = true}}' in text and '"icm-lib-transforms" = "0.0.9"' not in text, 'the pinned release gives way to the checkout'
-    assert text.count('volttron-message-bus-adapter') == 1 and '"attrs" = "26.1.0"' in text, 'existing entries are kept once'
+    assert (home / 'pyproject.toml').read_text() == fresh
     assert not (home / 'poetry.lock').exists()
     log = (stack['venv'] / 'pip.log').read_text()
     assert f'-e {modules}/icm-utils/icm-lib-resources[volttron,openfmb]' in log, 'the missing checkout is installed'
     assert f'-e {modules}/icm-utils/icm-lib-transforms' not in log, 'the one already editable from that path is not reinstalled'
-    assert any('recorded as path dependencies' in line for line in out)
+    assert any('environment changed' in line for line in out)
+    # the same environment again, with poetry's own formatting of the project: nothing is rewritten, the lock stays
+    (home / 'pyproject.toml').write_text(fresh.replace('develop = true', 'develop = true ') + '\n[build-system]\nrequires = ["poetry-core"]\n')
+    (home / 'poetry.lock').write_text('current')
+    out.clear()
+    try:
+        Platform().start(ctx, timeout=60)
+    finally:
+        Platform().stop(ctx)
+    assert (home / 'poetry.lock').read_text() == 'current' and not any('environment changed' in line for line in out)
+
+
+def test_platform_install_adds_the_platform_packages_the_venv_lacks(stack, monkeypatch):
+    """A venv with volttron-core alone (a library's extra pulled it in) still needs the bus, auth and web packages."""
+    from icmstack.components.platform_modular import Platform
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.has', lambda self, d: d == 'volttron-core')
+    profile = Profile('default', root=stack['root']); profile.answers.update({'venv': str(stack['venv']), 'volttron_home': str(stack['home']), 'instance_name': 'icmtest', 'backend': 'modular'}); profile.save()
+    ctx = Context(profile, Answers(profile, yes=True, interactive=True), out=lambda s: None)
+    Platform().install(ctx)
+    log = (stack['venv'] / 'pip.log').read_text()
+    assert 'volttron-lib-zmq volttron-lib-auth volttron-lib-web' in log and 'volttron-core' not in log
+
+
+def test_installed_state_is_per_environment(tmp_path):
+    """Switching the venv answer makes every component install again; a state file from before the venv was recorded too."""
+    p = Profile('default', root=tmp_path)
+    p.answers['venv'] = '/venv/one'; p.save()
+    p.mark_installed('platform')
+    assert p.is_installed('platform')
+    p.answers['venv'] = '/venv/two'; p.save()
+    assert not p.is_installed('platform')
+    p.answers['venv'] = '/venv/one'
+    assert p.is_installed('platform')
+    legacy = Profile('legacy', root=tmp_path); legacy.dir.mkdir(parents=True)
+    legacy.state_file.write_text(json.dumps({'installed': ['platform'], 'started': []}))
+    legacy = Profile('legacy', root=tmp_path); legacy.answers['venv'] = '/venv/one'
+    assert not legacy.is_installed('platform')
 
 
 def test_agent_install_from_checkouts_records_the_libraries_in_the_platform_project(stack, monkeypatch):

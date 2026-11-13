@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ..processes import ManagedProcess, port_open, processes_with_env, stop_pid, wait_for
 from ..prompts import Question
-from ..venv import PLATFORM_PACKAGES, POETRY_EXCLUDE, POETRY_LOCAL_CONFIG, PlatformEnv, add_path_dependencies
+from ..venv import PLATFORM_PACKAGES, POETRY_EXCLUDE, POETRY_LOCAL_CONFIG, PlatformEnv, add_path_dependencies, same_dependencies
 from .base import Component, Context, NotReady, Status
 
 RPC_ALLOW_LIST = [
@@ -59,17 +59,32 @@ def vctl(ctx: Context, *args: str, check: bool = True, timeout: float = 300):
     return env_of(ctx).run(['vctl', *args], env={'VOLTTRON_HOME': str(home_of(ctx))}, check=check, timeout=timeout)
 
 
-def record_checkouts(ctx: Context, env: PlatformEnv, out=print) -> None:
-    """Checkout mode: the unreleased libraries are installed editable from their checkouts and every editable install of
-    the environment is a path dependency of the platform's poetry project. Without that, the project's lock at start-up
-    (and ``vctl install``'s poetry add) tries to resolve the agents' requirements on those libraries from PyPI and
-    fails. A changed project loses its lock file; the platform re-locks on start."""
+def ensure_platform_packages(env: PlatformEnv, out=print) -> None:
+    """The platform packages the environment lacks (a venv that has volttron-core from a library's extra is not a
+    platform yet)."""
+    missing = [package for package in PLATFORM_PACKAGES if not env.has(package)]
+    if missing:
+        env.pip_install(missing, out)
+
+
+def ensure_checkout_libraries(ctx: Context, env: PlatformEnv, out=print) -> None:
+    """Checkout mode: the unreleased libraries are installed editable from their checkouts. Neither pip resolving an
+    agent nor the platform's poetry project can find them on PyPI."""
     if ctx.profile.answers.get('agent_source') != 'checkout':
         return
     from .checkouts import install_library_checkouts
     installed = install_library_checkouts(env, out)
     if installed:
         out(f'platform: {", ".join(installed)} installed editable from their checkouts')
+
+
+def record_checkouts(ctx: Context, env: PlatformEnv, out=print) -> None:
+    """Before an agent install from checkouts, while the platform runs: the libraries are in the environment and are path
+    dependencies of the platform's poetry project, which ``vctl install`` extends with ``poetry add`` and which would
+    otherwise try to resolve the agent's requirements on them from PyPI."""
+    if ctx.profile.answers.get('agent_source') != 'checkout':
+        return
+    ensure_checkout_libraries(ctx, env, out)
     pyproject = home_of(ctx) / 'pyproject.toml'
     if not pyproject.exists():
         return
@@ -77,7 +92,24 @@ def record_checkouts(ctx: Context, env: PlatformEnv, out=print) -> None:
     written = add_path_dependencies(pyproject, projects)
     if written:
         (pyproject.parent / 'poetry.lock').unlink(missing_ok=True)
-        out(f'platform: {", ".join(written)} recorded as path dependencies of the platform\'s poetry project; it re-locks on start')
+        out(f'platform: {", ".join(written)} recorded as path dependencies of the platform\'s poetry project')
+
+
+def refresh_poetry_project(env: PlatformEnv, home: Path, out=print) -> bool:
+    """The platform's poetry project mirrors the environment it runs in. When the environment's distributions differ
+    from what the project declares (another venv, packages added or upgraded, a library that gained a checkout), the
+    project is written again from the environment and loses its lock file, so the platform re-locks it on start
+    instead of failing to resolve the old declarations. Agents the platform added are editable installs or pinned
+    releases of the environment, so they stay. Returns whether the project changed."""
+    pyproject = home / 'pyproject.toml'
+    fresh = env.poetry_project()
+    if pyproject.exists() and same_dependencies(pyproject.read_text(), fresh):
+        return False
+    (home / 'poetry.toml').write_text(POETRY_LOCAL_CONFIG)
+    pyproject.write_text(fresh)
+    (home / 'poetry.lock').unlink(missing_ok=True)
+    out('platform: the environment changed since the platform recorded it; the project is written again and re-locks on start (a minute or two)')
+    return True
 
 
 def write_config(ctx: Context) -> Path:
@@ -119,8 +151,7 @@ class Platform(Component):
         env = PlatformEnv(ctx.answers.ask(PlatformQuestions.venv(ctx)))
         if not env.exists():
             env.create(ctx.out)
-        if not env.has('volttron-core'):
-            env.pip_install(PLATFORM_PACKAGES, ctx.out)
+        ensure_platform_packages(env, ctx.out)
         ctx.answers.ask(PlatformQuestions.home(ctx))
         ctx.answers.ask(PlatformQuestions.instance)
         write_config(ctx)
@@ -149,12 +180,12 @@ class Platform(Component):
             for pid, _ in strays:
                 ctx.out(f'platform: stopping pid {pid}' + ('' if stop_pid(pid) else ' failed'))
         write_config(ctx)
-        record_checkouts(ctx, env, ctx.out)
-        if not (home / 'pyproject.toml').exists():
-            # The first start records the environment in a poetry project; seeding it means the platform only locks it.
-            (home / 'poetry.toml').write_text(POETRY_LOCAL_CONFIG)
-            (home / 'pyproject.toml').write_text(env.poetry_project())
-            (home / 'poetry.lock').unlink(missing_ok=True)
+        ensure_platform_packages(env, ctx.out)
+        ensure_checkout_libraries(ctx, env, ctx.out)
+        # The poetry project in the home mirrors the environment; seeded here, the platform only locks it. It is written
+        # again whenever the environment no longer matches it (a venv switch, upgraded packages, new library checkouts).
+        first = not (home / 'pyproject.toml').exists()
+        if refresh_poetry_project(env, home, ctx.out if not first else lambda s: None) and first:
             ctx.out('platform: first start in this home, the platform records its environment (a minute or two)')
         if not env.poetry_works():
             raise NotReady('poetry does not run in the platform environment (the platform needs it on first start to record '

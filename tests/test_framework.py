@@ -335,3 +335,53 @@ def test_install_reinstalls_an_installed_component(stack):
     assert (stack['venv'] / 'pip.log').read_text().count('platform-driver') == before + 1       # install always installs
     run(stack['root'], '-y', 'start', 'driver')
     assert (stack['venv'] / 'pip.log').read_text().count('platform-driver') == before + 1       # start does not
+
+
+def test_stale_platform_project_learns_the_library_checkouts_before_start(stack, monkeypatch):
+    """A home whose poetry project predates the agents' requirements on the unreleased libraries: in checkout mode the
+    start installs the library checkouts editable, records every editable install as a path dependency, and drops
+    the lock so the platform re-locks. Otherwise the platform's own ``poetry lock`` fails on icm-lib-resources."""
+    from icmstack.components.platform_modular import Platform
+    modules = stack['root'] / 'modules'
+    for sub in ('icm-utils/icm-lib-transforms', 'icm-utils/icm-lib-resources'):
+        (modules / sub).mkdir(parents=True)
+    monkeypatch.setenv('ICM_MODULES', str(modules))
+    editable = {'volttron-message-bus-adapter': f'{modules}/message-bus-adapter', 'icm-lib-transforms': f'{modules}/icm-utils/icm-lib-transforms'}
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.editable_projects', lambda self: dict(editable))
+    home = stack['home']; home.mkdir(parents=True)
+    (home / 'pyproject.toml').write_text('[tool.poetry]\nname = "volttron"\npackage-mode = false\n\n[tool.poetry.dependencies]\npython = "~3.11"\n'
+                                         f'"volttron-message-bus-adapter" = {{path = "{modules}/message-bus-adapter", develop = true}}\n"icm-lib-transforms" = "0.0.9"\n"attrs" = "26.1.0"\n')
+    (home / 'poetry.lock').write_text('stale')
+    profile = Profile('default', root=stack['root']); profile.answers.update({'venv': str(stack['venv']), 'volttron_home': str(home), 'agent_source': 'checkout', 'instance_name': 'icmtest'}); profile.save()
+    out = []
+    ctx = Context(profile, Answers(profile, yes=True, interactive=True), out=out.append)
+    try:
+        Platform().start(ctx, timeout=60)
+    finally:
+        Platform().stop(ctx)
+    text = (home / 'pyproject.toml').read_text()
+    assert f'"icm-lib-transforms" = {{path = "{modules}/icm-utils/icm-lib-transforms", develop = true}}' in text and '"icm-lib-transforms" = "0.0.9"' not in text, 'the pinned release gives way to the checkout'
+    assert text.count('volttron-message-bus-adapter') == 1 and '"attrs" = "26.1.0"' in text, 'existing entries are kept once'
+    assert not (home / 'poetry.lock').exists()
+    log = (stack['venv'] / 'pip.log').read_text()
+    assert f'-e {modules}/icm-utils/icm-lib-resources[volttron,openfmb]' in log, 'the missing checkout is installed'
+    assert f'-e {modules}/icm-utils/icm-lib-transforms' not in log, 'the one already editable from that path is not reinstalled'
+    assert any('recorded as path dependencies' in line for line in out)
+
+
+def test_agent_install_from_checkouts_records_the_libraries_in_the_platform_project(stack, monkeypatch):
+    from icmstack.components.agents import Agent, SPECS
+    modules = stack['root'] / 'modules'
+    for sub in ('resource-bridge', 'icm-utils/icm-lib-transforms', 'icm-utils/icm-lib-resources'):
+        (modules / sub).mkdir(parents=True)
+    monkeypatch.setenv('ICM_MODULES', str(modules))
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.has', lambda self, d: False)
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.editable_projects', lambda self: {'icm-lib-resources': f'{modules}/icm-utils/icm-lib-resources', 'icm-lib-transforms': f'{modules}/icm-utils/icm-lib-transforms'})
+    home = stack['home']; home.mkdir(parents=True)
+    (home / 'pyproject.toml').write_text('[tool.poetry.dependencies]\npython = "~3.11"\n')
+    profile = Profile('default', root=stack['root']); profile.answers.update({'venv': str(stack['venv']), 'volttron_home': str(home), 'agent_source': 'checkout'}); profile.save()
+    ctx = Context(profile, Answers(profile, yes=True, interactive=True), out=lambda s: None)
+    next(Agent(s) for s in SPECS if s.name == 'resource-bridge').install(ctx)
+    text = (home / 'pyproject.toml').read_text()
+    assert '"icm-lib-resources" = {path = ' in text and '"icm-lib-transforms" = {path = ' in text
+    assert text.index('python = ') < text.index('"icm-lib-resources"')

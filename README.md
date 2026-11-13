@@ -42,3 +42,13 @@ icmstack doctor                             # what this machine has and lacks
 ```
 
 Run the tests with `pytest` after `pip install -e '.[dev]'`.
+
+### Agents from checkouts
+
+`--agent-source checkout` (or the recorded answer) installs the agents from your working copies instead of PyPI:
+`VOLTTRON_MODULAR_DRIVERS` names the modular drivers tree (the proxies are expected beside it) and `ICM_MODULES` the
+directory holding the interoperability repositories, `icm-utils` among them. The shared libraries the agents import
+(`icm-lib-transforms`, `icm-lib-resources` and the `icm-lib-models-*` packages) are then installed editable from
+`icm-utils` and recorded as path dependencies of the platform's own poetry project, so the platform can resolve the
+agents' requirements on them before any release exists. A platform home created earlier gets those entries on the next
+start and re-locks its project.

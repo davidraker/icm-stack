@@ -2,7 +2,6 @@
 checkout with --agent-source checkout or --source NAME=PATH_OR_SPEC), then registered with vctl install --enable."""
 from __future__ import annotations
 
-import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,37 +9,12 @@ from pathlib import Path
 from ..processes import wait_for
 from ..prompts import Question
 from .base import Component, Context, NotReady, Status
-from .platform_modular import Platform, env_of, vctl
+from .checkouts import EXTRA_CHECKOUTS, ICM_LIBS, MODEL_LIBS, checkout_root  # noqa: F401  (ICM_LIBS, MODEL_LIBS: the specs below and the tests)
+from .platform_modular import Platform, env_of, record_checkouts, vctl
 
 Q_SOURCE = Question('agent_source', 'Install the agents from PyPI releases (pypi) or from your checkouts under $ICM_MODULES and $VOLTTRON_MODULAR_DRIVERS (checkout)',
                     default='pypi', kind='choice', choices=('pypi', 'checkout'),
                     help='One agent can be taken from elsewhere with --source-<agent> PATH_OR_REQUIREMENT (a directory, a wheel or a pip requirement); that is not asked.')
-
-
-def checkout_root(variable: str) -> Path | None:
-    for name in ((variable, 'DER_CONTROL_MODULES') if variable == 'ICM_MODULES' else (variable,)):
-        if os.environ.get(name):
-            return Path(os.environ[name]).expanduser()
-    if variable == 'VOLTTRON_MODULAR_PROXIES' and os.environ.get('VOLTTRON_MODULAR_DRIVERS'):
-        sibling = Path(os.environ['VOLTTRON_MODULAR_DRIVERS']).expanduser().parent / 'proxies'    # the modular tree: drivers/ next to proxies/
-        if sibling.is_dir():
-            return sibling
-    return None
-
-
-#: Libraries the agents need beyond their own package, and where their checkouts live when installing from source.
-EXTRA_CHECKOUTS = {'volttron-lib-base-driver': ('VOLTTRON_MODULAR_DRIVERS', 'base-driver'), 'volttron-lib-fake-driver': ('VOLTTRON_MODULAR_DRIVERS', 'interfaces/fake'),
-                   'protocol-proxy': ('VOLTTRON_MODULAR_PROXIES', 'protocol-proxy'), 'protocol-proxy-mqtt': ('VOLTTRON_MODULAR_PROXIES', 'mqtt'),
-                   'icm-lib-transforms': ('ICM_MODULES', 'icm-utils/icm-lib-transforms'),
-                   'icm-lib-resources[volttron,openfmb]': ('ICM_MODULES', 'icm-utils/icm-lib-resources'),
-                   'icm-lib-models-sunspec': ('ICM_MODULES', 'icm-utils/icm-lib-models-sunspec'),
-                   'icm-lib-models-ieee1815-2': ('ICM_MODULES', 'icm-utils/icm-lib-models-ieee1815-2'),
-                   'icm-lib-models-ieee2030-5': ('ICM_MODULES', 'icm-utils/icm-lib-models-ieee2030-5'),
-                   'icm-lib-models-openfmb': ('ICM_MODULES', 'icm-utils/icm-lib-models-openfmb')}
-#: The two shared libraries every interoperability agent imports (the service, the Resource Bridge, the bus adapter).
-ICM_LIBS = ('icm-lib-transforms', 'icm-lib-resources[volttron,openfmb]')
-#: The standards' model packages, which the service's format universe and discovery need.
-MODEL_LIBS = ('icm-lib-models-sunspec', 'icm-lib-models-ieee1815-2', 'icm-lib-models-ieee2030-5', 'icm-lib-models-openfmb')
 
 
 @dataclass
@@ -121,6 +95,9 @@ class Agent(Component):
                 elif not env.has(base):
                     ctx.out(f'{self.name}: no checkout found for {package} ({variable or "no variable"}); installing it from PyPI')
                     env.pip_install([package], ctx.out)
+            # The platform's poetry project must know the library checkouts too, or vctl install's poetry add cannot
+            # resolve the agent's requirements on them.
+            record_checkouts(ctx, env, ctx.out)
         if pip_spec.startswith('-e:'):
             env.pip_install([pip_spec[3:]], ctx.out, editable=True)
         else:

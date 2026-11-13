@@ -1,7 +1,9 @@
 """The Python environment the platform and the agents run in, and the commands run inside it."""
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -40,6 +42,41 @@ print('\n'.join(['[tool.poetry]', 'name = "volttron"', 'version = "0.1.0"', 'des
     '[[tool.poetry.source]]', 'name = "test-pypi"', 'url = "https://test.pypi.org/simple/"', 'priority = "supplemental"', '',
     '[build-system]', 'requires = ["poetry-core>=2.0.0,<3.0.0"]', 'build-backend = "poetry.core.masonry.api"', '']))
 '''
+
+_EDITABLE_SCRIPT = r'''
+import json
+from importlib import metadata
+found = {}
+for dist in metadata.distributions():
+    info = json.loads(dist.read_text('direct_url.json') or '{}')
+    if info.get('dir_info', {}).get('editable') and dist.metadata['Name']:
+        found[dist.metadata['Name'].lower().replace('_', '-')] = info['url'].removeprefix('file://')
+print(json.dumps(found))
+'''
+
+
+def add_path_dependencies(pyproject: Path, projects: dict[str, str]) -> list[str]:
+    """Record ``projects`` (name -> directory) as develop path dependencies of the poetry project unless they are
+    already there as such; a plain version pin of the same name is replaced. Returns the names written."""
+    lines = pyproject.read_text().splitlines()
+    written, python_at = [], None
+    for name, path in sorted(projects.items()):
+        line = f'"{name}" = {{path = "{path}", develop = true}}'
+        at = next((i for i, l in enumerate(lines) if re.match(rf'"{re.escape(name)}"\s*=', l, re.IGNORECASE)), None)
+        if at is not None and lines[at] == line:
+            continue
+        if at is not None and 'path =' in lines[at]:
+            continue                                # a path dependency already, from somewhere else: left alone
+        if at is not None:
+            lines[at] = line                        # a pinned release of the same name would shadow the checkout
+        else:
+            if python_at is None:
+                python_at = next(i for i, l in enumerate(lines) if l.startswith('python = '))
+            lines.insert(python_at + 1, line)
+        written.append(name)
+    if written:
+        pyproject.write_text('\n'.join(lines) + '\n')
+    return written
 
 
 class EnvError(RuntimeError):
@@ -128,6 +165,11 @@ class PlatformEnv:
 
     def poetry_project(self, exclude=POETRY_EXCLUDE) -> str:
         return self.run(['python', '-c', _PROJECT_SCRIPT, ','.join(exclude)]).stdout
+
+    def editable_projects(self) -> dict[str, str]:
+        """The editable (path) installs of this environment: distribution name -> directory."""
+        done = self.run(['python', '-c', _EDITABLE_SCRIPT])
+        return json.loads(done.stdout or '{}')
 
     @staticmethod
     def running_venv() -> Path | None:

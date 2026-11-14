@@ -76,6 +76,46 @@ class PointTable:
         return raw
 
 
+SUNS = (0x5375, 0x6E53)     # "SunS": the marker a SunSpec scan looks for at the base address (40000, 0 or 50000)
+END_MODEL = 0xFFFF
+
+
+def sunspec_layout(table: PointTable) -> dict[int, int] | None:
+    """The SunSpec map a scan expects, derived from a registry whose point names start with the model id (``701_W``):
+    the base marker two registers before the first model header, a header (ID, L) two registers before each model's
+    first point, L from the distance to the next header (the last model's from its last point), zeros for the
+    registers of a model the registry does not list, and the end marker after the last model. None when the
+    registry does not have that shape (then only the points themselves are served, and a scan finds nothing)."""
+    models: dict[int, list[int]] = {}
+    for name, (address, _dtype, count) in table.points.items():
+        m = re.match(r'(\d+)_', name)
+        if not m:
+            return None
+        lo_hi = models.setdefault(int(m.group(1)), [address, address + count])
+        lo_hi[0], lo_hi[1] = min(lo_hi[0], address), max(lo_hi[1], address + count)
+    if not models:
+        return None
+    ordered = sorted(models.items(), key=lambda item: item[1][0])
+    words: dict[int, int] = {}
+    base = ordered[0][1][0] - 4
+    if base < 0:
+        return None
+    words[base], words[base + 1] = SUNS
+    for i, (model_id, (lo, hi)) in enumerate(ordered):
+        header = lo - 2
+        if i and header != ordered[i - 1][1][0] + words[ordered[i - 1][1][0] - 1]:
+            return None                            # a gap or overlap between models: not a SunSpec chain
+        length = (ordered[i + 1][1][0] - 2 - lo) if i + 1 < len(ordered) else hi - lo
+        if length <= 0:
+            return None
+        words[header], words[header + 1] = model_id, length
+        for a in range(lo, lo + length):
+            words.setdefault(a, 0)
+    last_lo, last_length = ordered[-1][1][0], words[ordered[-1][1][0] - 1]
+    words[last_lo + last_length], words[last_lo + last_length + 1] = END_MODEL, 0
+    return words
+
+
 class SunSpecDevice:
     def __init__(self, registry_csv: Path, host: str = '127.0.0.1', port: int = 0, unit_id: int = 1):
         from umodbus.server.tcp import RequestHandler, get_server
@@ -84,6 +124,10 @@ class SunSpecDevice:
         self.words: dict[int, int] = {}
         self.written: list[tuple[str, object]] = []
         self._lock = threading.Lock()
+        layout = sunspec_layout(self.table)
+        self.scannable = layout is not None
+        if layout:
+            self.words.update(layout)
         for name, value in self.table.defaults.items():
             self.set_point(name, value)
         for name, (address, dtype, count) in self.table.points.items():
@@ -149,6 +193,7 @@ def main(argv=None) -> int:
         return 2
     device = SunSpecDevice(Path(args.registry), args.host, args.port, args.unit).start()
     print(f'sunspec device: {device.host}:{device.port} unit {device.unit_id}, {len(device.table.points)} points from {args.registry}'
+          + (', SunSpec model map (scannable)' if device.scannable else ', points only (the registry is not a SunSpec model chain; a scan finds nothing)')
           + (f', live readings every {args.period} s' if args.live else ', static readings'), flush=True)
     import math
     live = [(name, base, swing, period) for name, base, swing, period in (('701_W', 4000, 600, 180), ('701_Var', 300, 80, 240), ('701_Hz', 6000, 3, 60), ('701_VL1', 2400, 20, 120))

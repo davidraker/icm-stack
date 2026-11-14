@@ -167,3 +167,41 @@ def test_missing_cryptography_is_a_clear_message(tmp_path, monkeypatch):
     from icmstack.devices import sep2
     with pytest.raises(RuntimeError, match='cryptography package is missing'):
         sep2.lfdi_from_cert(tmp_path / 'x.crt')
+
+
+def test_sunspec_device_serves_the_model_map_a_scan_expects():
+    """"SunS" at the base, a header (ID, L) before each model, every register of each model readable, the end marker:
+    pysunspec2 (and Discover) can scan the dummy; the registry's own points keep their values."""
+    import sys, threading
+    from pathlib import Path
+    from icmstack.devices.sunspec import END_MODEL, SUNS, PointTable, SunSpecDevice, sunspec_layout
+    registry = Path(__file__).resolve().parents[1] / 'src' / 'icmstack' / 'data' / 'registries' / 'sunspec_pv.modbus.csv'
+    layout = sunspec_layout(PointTable(registry))
+    assert (layout[40000], layout[40001]) == SUNS and (layout[40002], layout[40003]) == (1, 66)
+    assert (layout[40070], layout[40071]) == (701, 153) and (layout[40225], layout[40226]) == (702, 50) and (layout[40603], layout[40604]) == (713, 7)
+    assert layout[40612] == END_MODEL and layout[40613] == 0
+    assert all(a in layout for a in range(40000, 40614)), 'no hole a model read could fall into'
+    device = SunSpecDevice(registry, port=0).start()
+    try:
+        from umodbus import conf
+        from umodbus.client import tcp
+        import socket
+        conf.SIGNED_VALUES = False
+        sock = socket.create_connection((device.host, device.port), timeout=5)
+        try:
+            words = tcp.send_message(tcp.read_holding_registers(1, 40000, 4), sock)
+            assert tuple(words[:2]) == SUNS and words[2:] == [1, 66]
+            w_address = device.table.points['701_W'][0]
+            assert tcp.send_message(tcp.read_holding_registers(1, w_address, 1), sock) == PointTable.to_words('int16', device.get_point('701_W'))
+        finally:
+            sock.close()
+        try:
+            import sunspec2.modbus.client as mc
+        except ImportError:
+            return
+        d = mc.SunSpecModbusClientDeviceTCP(slave_id=1, ipaddr=device.host, ipport=device.port)
+        d.scan()
+        assert sorted(int(m) for m in d.models if str(m).isdigit()) == [1, 701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713]
+        assert d.models[701][0].W.value == device.get_point('701_W')
+    finally:
+        device.stop()

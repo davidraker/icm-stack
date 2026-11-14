@@ -146,33 +146,41 @@ class Cli:
         return 0
 
     def do_reset_config(self, ctx, args) -> int:
+        wanted = [i.strip() for i in args.identities.split(',') if i.strip()] if args.identities else None
+        self.reset_stores(ctx, wanted, default=False, label='reset-config')
+        return 0
+
+    def reset_stores(self, ctx, identities: list[str] | None = None, default: bool = False, label: str = 'reset-config', reason: str = '') -> bool:
+        """Empty the agents' configuration stores (all, or the given identities) after asking. With the platform stopped
+        the store is one <identity>.store file per agent under the home, deleted directly; running, vctl does it.
+        Returns whether anything was deleted."""
         from .components.platform_modular import Platform, home_of, vctl
         if not Platform().process(ctx).running():
-            # Stopped platform: the store is one <identity>.store file per agent under the home; delete those directly.
             store = home_of(ctx) / 'configuration_store'
             files = sorted(store.glob('*.store')) if store.is_dir() else []
-            wanted = [i.strip() for i in args.identities.split(',') if i.strip()] if args.identities else None
-            files = [f for f in files if wanted is None or f.stem in wanted]
+            files = [f for f in files if identities is None or f.stem in identities]
             if not files:
-                self.out(f'reset-config: the platform is not running and {store} holds no store files'); return 0
-            if not ctx.answers.confirm(f'The platform is stopped. Delete the store files of {", ".join(f.stem for f in files)} from {store}?', default=False):
-                self.out('reset-config: nothing deleted'); return 0
+                if label == 'reset-config':
+                    self.out(f'{label}: the platform is not running and {store} holds no store files')
+                return False
+            if not ctx.answers.confirm(f'{reason}The platform is stopped. Delete the store files of {", ".join(f.stem for f in files)} from {store}?', default=default):
+                self.out(f'{label}: nothing deleted'); return False
             for f in files:
                 f.unlink(); self.out(f'{f.stem}: store file deleted')
-            return 0
-        if args.identities:
-            identities = [i.strip() for i in args.identities.split(',') if i.strip()]
-        else:
+            return True
+        if identities is None:
             listing = vctl(ctx, 'config', 'list', check=False, timeout=60)
             identities = [l.strip() for l in listing.stdout.splitlines() if l.strip() and not l.startswith('Failed')]
         if not identities:
-            self.out('reset-config: no configuration store has entries'); return 0
-        if not ctx.answers.confirm(f'Delete every configuration entry of {", ".join(identities)}?', default=False):
-            self.out('reset-config: nothing deleted'); return 0
+            if label == 'reset-config':
+                self.out(f'{label}: no configuration store has entries')
+            return False
+        if not ctx.answers.confirm(f'{reason}Delete every configuration entry of {", ".join(identities)}?', default=default):
+            self.out(f'{label}: nothing deleted'); return False
         for identity in identities:
             done = vctl(ctx, 'config', 'delete', identity, '--all', check=False, timeout=120)
             self.out(f'{identity}: {"store wiped" if done.returncode == 0 else "failed: " + done.stdout.strip()[-200:]}')
-        return 0
+        return True
 
     def do_shell(self, ctx, args) -> int:
         self.out(f'export VOLTTRON_HOME={ctx.profile.volttron_home}')
@@ -253,6 +261,9 @@ class Cli:
                 names.append(optional)
         ctx.profile.answers['preset'] = args.preset
         self.out(f'{args.preset}: {preset["description"]}')
+        if preset.get('reset'):
+            # "Nothing configured" includes what earlier runs of this profile left in the agents' stores.
+            self.reset_stores(ctx, default=True, label=args.preset, reason=f'{args.preset} starts from empty configuration stores. ')
         # Parties that talk to a device the platform serves start after registration has written that served device.
         late = [n for n in names if getattr(self.registry[n], 'after_register', False)]
         code = self._run(ctx, [n for n in names if n not in late], 'start')

@@ -490,3 +490,20 @@ def test_agent_processes_left_behind_by_a_dead_platform_are_reported_and_stopped
         for p in (agent, proxy):
             if p.poll() is None:
                 p.kill()
+
+
+def test_showroom_empties_the_stores_before_starting(stack, monkeypatch):
+    """The showroom means nothing configured: the agents' stores from an earlier run are emptied at up, after a
+    question that -y answers yes; a refusal keeps them. The parties that need a served device are not part of it."""
+    from icmstack.presets import FRAMEWORK_CORE, PRESETS
+    assert 'openfmb-party' in PRESETS['showroom']['components'] and not {'dnp3-master', 'sep2-client'} & set(PRESETS['showroom']['components'])
+    monkeypatch.setitem(PRESETS['showroom'], 'components', FRAMEWORK_CORE)      # the framework alone: no containers in the tests
+    store = stack['home'] / 'configuration_store'; store.mkdir(parents=True)
+    (store / 'platform.driver.store').write_text('{}'); (store / 'platform.presentation.store').write_text('{}')
+    code, text = run(stack['root'], 'up', 'showroom', *stack['common'], replies=['', '', 'n'] + [''] * 30)     # rtc and scheduler declined, then the wipe refused
+    assert 'nothing deleted' in text and (store / 'platform.driver.store').exists()
+    run(stack['root'], '-y', 'down')
+    code, text = run(stack['root'], '-y', 'up', 'showroom', *stack['common'])
+    assert 'platform.driver: store file deleted' in text and not list(store.glob('*.store'))
+    assert 'platform: running' in text
+    run(stack['root'], '-y', 'down')

@@ -30,7 +30,10 @@ the container devices `dnp3-outstation` and `dnp3-master` (the IEEE 1815.2 test 
 `sep2-server` and `sep2-client` (the GridAPPS-D Go implementations, images `sep2server:e2e` and `inverterclient:e2e`).
 Each registers with the platform; the two served-role parties register the device the platform serves for them.
 `icmstack up demo` wires the SunSpec device's readings to an OpenFMB profile on the broker; `up matrix` adds the
-container devices in both roles; `up showroom` runs everything with nothing registered. `icmstack doctor` lists what
+container devices in both roles; `up showroom` runs everything with nothing configured: it empties the agents'
+configuration stores first (after asking; `-y` agrees) so the demonstration starts from the Devices tab, and leaves the
+two parties that need a served device (`dnp3-master`, `sep2-client`) for `icmstack start` when a path needs them.
+`icmstack doctor` lists what
 the machine has and lacks. The fastlib platform backend is not available yet and says so.
 
 ## Installing

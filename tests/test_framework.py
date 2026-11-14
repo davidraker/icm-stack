@@ -278,6 +278,8 @@ def test_extra_packages_come_from_checkouts_when_agents_do(stack, monkeypatch):
     # the protocols the dummy devices speak come with the driver: interfaces from the drivers tree, proxies from beside it
     for sub in ('drivers/interfaces/pymodbus', 'drivers/interfaces/dnp3', 'drivers/interfaces/ieee2030_5', 'proxies/protocol-proxy', 'proxies/modbus', 'proxies/dnp3', 'proxies/ieee2030_5'):
         assert f'-e {tree}/{sub}' in log, sub
+    for proxy, interface in (('modbus', 'pymodbus'), ('dnp3', 'dnp3'), ('ieee2030_5', 'ieee2030_5')):
+        assert log.index(f'-e {tree}/proxies/{proxy}') < log.index(f'-e {tree}/drivers/interfaces/{interface}'), 'the proxy an interface requires is installed first'
 
 
 def test_shared_libraries_install_from_the_icm_utils_checkout_before_the_agent(stack, monkeypatch):

@@ -45,8 +45,10 @@ UNRELEASED_LIBS = ICM_LIBS + MODEL_LIBS
 #: The protocols the dummy devices speak: the driver's interface and the proxy each one launches. Installed with the
 #: driver; one that cannot be installed is reported, not fatal, since the driver runs without it (that protocol's
 #: devices then fail to start).
-PROTOCOL_PACKAGES = ('protocol-proxy', 'volttron-lib-modbus-driver', 'protocol-proxy-modbus', 'volttron-lib-dnp3-driver', 'protocol-proxy-dnp3',
-                     'volttron-lib-ieee2030_5-driver', 'protocol-proxy-ieee2030_5')
+#: Proxies before interfaces: each interface requires its proxy by version, which pip can only satisfy from the
+#: environment while the proxies have no release.
+PROTOCOL_PACKAGES = ('protocol-proxy', 'protocol-proxy-modbus', 'protocol-proxy-dnp3', 'protocol-proxy-ieee2030_5',
+                     'volttron-lib-modbus-driver', 'volttron-lib-dnp3-driver', 'volttron-lib-ieee2030_5-driver')
 
 
 def split_extras(package: str) -> tuple[str, str]:

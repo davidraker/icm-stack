@@ -10,7 +10,7 @@ from ..processes import wait_for
 from ..prompts import Question
 from .base import Component, Context, NotReady, Status
 from .checkouts import EXTRA_CHECKOUTS, ICM_LIBS, MODEL_LIBS, checkout_root  # noqa: F401  (ICM_LIBS, MODEL_LIBS: the specs below and the tests)
-from .platform_modular import Platform, env_of, record_checkouts, vctl
+from .platform_modular import Platform, ensure_checkout_libraries, env_of, record_checkouts, vctl
 
 Q_SOURCE = Question('agent_source', 'Install the agents from PyPI releases (pypi) or from your checkouts under $ICM_MODULES and $VOLTTRON_MODULAR_DRIVERS (checkout)',
                     default='pypi', kind='choice', choices=('pypi', 'checkout'),
@@ -86,6 +86,8 @@ class Agent(Component):
             # From checkouts, the libraries must come from the checkouts too, and before the agent: a released copy of
             # the base driver next to a checkout of the platform driver is a version mismatch (the driver then fails at
             # start-up), and a library that has no release yet cannot be resolved by the agent's own install at all.
+            # The unreleased libraries come first of all: the base driver's transform column imports icm-lib-transforms.
+            ensure_checkout_libraries(ctx, env, ctx.out)
             for package in self.spec.extra_packages:
                 variable, subdir = EXTRA_CHECKOUTS.get(package, (None, None))
                 root = checkout_root(variable) if variable else None

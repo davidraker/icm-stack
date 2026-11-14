@@ -445,3 +445,21 @@ def test_web_install_keeps_the_existing_admin_user_unless_a_password_is_chosen(s
     out.clear()
     Web().install(Context(profile, Answers(profile, cli={'web_password': 'chosen'}, yes=True, interactive=True), out=out.append))
     assert json.loads((home / 'web-users.json').read_text())['admin']['hashed_password'] == 'fake', 'a chosen password replaces the user'
+
+
+def test_driver_install_from_checkouts_installs_the_transform_library_before_the_base_driver(stack, monkeypatch):
+    """The base driver's transform column imports icm-lib-transforms, so the library checkout must be in the environment
+    before pip resolves the base driver, or pip looks for it on PyPI."""
+    from icmstack.components.agents import Agent, SPECS
+    tree, modules = stack['root'] / 'modular', stack['root'] / 'modules'
+    for sub in ('drivers/base-driver', 'drivers/interfaces/fake', 'drivers/platform-driver-agent'):
+        (tree / sub).mkdir(parents=True)
+    (modules / 'icm-utils/icm-lib-transforms').mkdir(parents=True)
+    monkeypatch.setenv('VOLTTRON_MODULAR_DRIVERS', str(tree / 'drivers')); monkeypatch.setenv('ICM_MODULES', str(modules))
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.has', lambda self, d: False)
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.editable_projects', lambda self: {})
+    profile = Profile('default', root=stack['root']); profile.answers.update({'venv': str(stack['venv']), 'volttron_home': str(stack['home']), 'agent_source': 'checkout'}); profile.save()
+    ctx = Context(profile, Answers(profile, yes=True, interactive=True), out=lambda s: None)
+    next(Agent(s) for s in SPECS if s.name == 'driver').install(ctx)
+    log = (stack['venv'] / 'pip.log').read_text()
+    assert log.index(f'-e {modules}/icm-utils/icm-lib-transforms') < log.index(f'-e {tree}/drivers/base-driver') < log.index(f'-e {tree}/drivers/platform-driver-agent')

@@ -401,6 +401,12 @@ def test_installed_state_is_per_environment(tmp_path):
     assert not p.is_installed('platform')
     p.answers['venv'] = '/venv/one'
     assert p.is_installed('platform')
+    # the same path, but a venv deleted and created again: another environment
+    venv = tmp_path / 'venv3'; venv.mkdir()
+    p.answers['venv'] = str(venv); p.mark_installed('ui')
+    assert p.is_installed('ui')
+    import shutil; shutil.rmtree(venv); venv.mkdir()
+    assert not p.is_installed('ui')
     legacy = Profile('legacy', root=tmp_path); legacy.dir.mkdir(parents=True)
     legacy.state_file.write_text(json.dumps({'installed': ['platform'], 'started': []}))
     legacy = Profile('legacy', root=tmp_path); legacy.answers['venv'] = '/venv/one'
@@ -423,3 +429,19 @@ def test_agent_install_from_checkouts_records_the_libraries_in_the_platform_proj
     text = (home / 'pyproject.toml').read_text()
     assert '"icm-lib-resources" = {path = ' in text and '"icm-lib-transforms" = {path = ' in text
     assert text.index('python = ') < text.index('"icm-lib-resources"')
+
+
+def test_web_install_keeps_the_existing_admin_user_unless_a_password_is_chosen(stack, monkeypatch):
+    """A second web install (after a venv change) must not replace the admin's password with a new generated one."""
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.has', lambda self, d: True)
+    home = stack['home']; home.mkdir(parents=True, exist_ok=True)
+    (home / 'web-users.json').write_text(json.dumps({'admin': {'groups': ['admin', 'vui'], 'hashed_password': 'kept'}}))
+    profile = Profile('default', root=stack['root'])
+    profile.answers.update({'venv': str(stack['venv']), 'volttron_home': str(home), 'instance_name': 'icmtest', 'bind': f'http://127.0.0.1:{stack["web_port"]}', 'web_user': 'admin'}); profile.save()
+    out = []
+    Web().install(Context(profile, Answers(profile, yes=True, interactive=True), out=out.append))
+    assert json.loads((home / 'web-users.json').read_text())['admin']['hashed_password'] == 'kept'
+    assert not any('generated' in line for line in out) and any('kept' in line for line in out)
+    out.clear()
+    Web().install(Context(profile, Answers(profile, cli={'web_password': 'chosen'}, yes=True, interactive=True), out=out.append))
+    assert json.loads((home / 'web-users.json').read_text())['admin']['hashed_password'] == 'fake', 'a chosen password replaces the user'

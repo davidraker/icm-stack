@@ -52,5 +52,8 @@ directory holding the interoperability repositories, `icm-utils` among them. The
 `icm-utils` and recorded as path dependencies of the platform's own poetry project, so the platform can resolve the
 agents' requirements on them before any release exists. The project mirrors the environment: when the two differ (a
 platform home created earlier, a switch to another venv, upgraded packages) the project is written again on the next
-start and re-locked. The installed state is per environment too, so after a venv switch `up` installs everything into
-the new one.
+start and re-locked. The installed state is per environment too, so after a venv switch, or a venv deleted and created
+again at the same path, `up` installs everything into the new one; the web admin user already in the platform's home is
+kept, with its password, unless a password is chosen. To start over completely: `icmstack down`, then delete the
+profile directory (`~/.icmstack/<profile>`, which holds VOLTTRON_HOME, certificates, logs and the recorded answers) and
+the venv.

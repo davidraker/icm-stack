@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 import os
 import sys
 from pathlib import Path
@@ -82,6 +83,19 @@ class Profile:
         self.state_file.write_text(json.dumps(self.state, indent=1))
 
     # ---------------------------------------------------------------- state
+    def environment_id(self) -> str:
+        """The venv answer plus a marker the first use writes into the venv: a venv deleted and created again at the same
+        path is another environment, with none of what was installed into the old one."""
+        venv = self.answers.get('venv', '')
+        if not venv:
+            return ''
+        marker = Path(venv).expanduser() / '.icmstack-id'
+        if not marker.parent.is_dir():
+            return f'{venv}#missing'
+        if not marker.exists():
+            marker.write_text(uuid.uuid4().hex)
+        return f'{venv}#{marker.read_text().strip()}'
+
     def mark_installed(self, name: str, installed: bool = True) -> None:
         items = self.state['installed']
         if installed and name not in items:
@@ -90,7 +104,7 @@ class Profile:
             items.remove(name)
         where = self.state.setdefault('installed_in', {})
         if installed:
-            where[name] = self.answers.get('venv', '')
+            where[name] = self.environment_id()
         else:
             where.pop(name, None)
         self.save()
@@ -105,11 +119,11 @@ class Profile:
 
     def is_installed(self, name: str) -> bool:
         """Installed into the environment the profile names now. A component installed when another venv was the
-        answer (or by a version of the tool that did not record it) is installed again, so a venv switch does not leave
-        the platform or an agent missing from the new environment."""
+        answer, into a venv since deleted and created again, or by a version of the tool that did not record it, is
+        installed again, so neither a venv switch nor a fresh venv leaves the platform or an agent missing."""
         if name not in self.state['installed']:
             return False
-        return self.state.get('installed_in', {}).get(name) == self.answers.get('venv', '')
+        return self.state.get('installed_in', {}).get(name) == self.environment_id()
 
     @classmethod
     def existing(cls, root: Path | None = None) -> list[str]:

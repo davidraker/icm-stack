@@ -1,6 +1,7 @@
 """The platform on modular VOLTTRON (volttron-core, ZMQ, auth on) and its web service, run from a Python environment."""
 from __future__ import annotations
 
+import json
 import re
 import secrets
 import time
@@ -263,16 +264,24 @@ class Web(Component):
                 self.generate_certificate(ctx)
         else:
             ctx.profile.answers.setdefault('web_secret_key', secrets.token_hex(32))
-        user, password = a.ask(self.Q_USER), a.ask(self.Q_PASSWORD)
+        user = a.ask(self.Q_USER)
         home = home_of(ctx)
         home.mkdir(parents=True, exist_ok=True)
         env = env_of(ctx)
         if not env.has('volttron-lib-web'):
             env.pip_install(['volttron-lib-web'], ctx.out)
-        # web-users.json is a file in VOLTTRON_HOME; lib-web's helper writes it, no running platform needed.
-        env_of(ctx).run(['python', '-c', 'import sys; from volttron.services.web.user_manager import add_web_user; '
-                         'add_web_user(sys.argv[1], sys.argv[2], groups=["admin", "vui"], overwrite=True)', user, password],
-                        env={'VOLTTRON_HOME': str(home)})
+        # web-users.json is a file in VOLTTRON_HOME; lib-web's helper writes it, no running platform needed. A user the
+        # home already has is kept unless a password was chosen (option, file or environment): the web component is
+        # installed again after every venv change, and a generated password each time would lock the UI out.
+        users_file = home / 'web-users.json'
+        chosen, password = a.settled(self.Q_PASSWORD)
+        if not chosen and users_file.exists() and user in json.loads(users_file.read_text() or '{}'):
+            ctx.out(f'web: admin user {user} kept from {users_file} (its password is unchanged)')
+        else:
+            password = a.ask(self.Q_PASSWORD)
+            env.run(['python', '-c', 'import sys; from volttron.services.web.user_manager import add_web_user; '
+                     'add_web_user(sys.argv[1], sys.argv[2], groups=["admin", "vui"], overwrite=True)', user, password],
+                    env={'VOLTTRON_HOME': str(home)})
         ctx.profile.mark_installed(self.name)
         write_config(ctx)
         platform = Platform()

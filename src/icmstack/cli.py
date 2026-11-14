@@ -288,7 +288,7 @@ class Cli:
                 self.out(f'stopped {len(names)} container(s) of profile {ctx.profile.name}')
             from .components.platform_modular import Platform
             platform = Platform()
-            if platform.strays(ctx) or platform.process(ctx).running():
+            if platform.strays(ctx) or platform.leftovers(ctx) or platform.process(ctx).running():
                 platform.stop(ctx)
             elif not names:
                 self.out('nothing is recorded as started, and nothing of this profile is running')

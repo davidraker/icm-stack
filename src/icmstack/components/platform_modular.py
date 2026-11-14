@@ -166,6 +166,30 @@ class Platform(Component):
         own = self.process(ctx).pid()
         return [(pid, cmd) for pid, cmd in processes_with_env('VOLTTRON_HOME', str(home_of(ctx)), 'volttron') if pid != own and ' -l ' in cmd]
 
+    def leftovers(self, ctx: Context) -> list[tuple[int, str]]:
+        """Agent processes (and the protocol proxies they launched) of this home that outlived their platform: the
+        platform's python, this VOLTTRON_HOME in their environment, not the platform itself and not this tool. A platform
+        killed rather than shut down (its venv deleted under it, a crash) leaves them behind, each holding its sockets."""
+        import os
+        python = str(env_of(ctx).python)
+        ancestors = set()
+        pid = os.getpid()
+        while pid > 1:
+            ancestors.add(pid)
+            try:
+                pid = int(next(l for l in Path(f'/proc/{pid}/status').read_text().splitlines() if l.startswith('PPid:')).split()[1])
+            except (OSError, StopIteration, ValueError):
+                break
+        return [(pid, cmd) for pid, cmd in processes_with_env('VOLTTRON_HOME', str(home_of(ctx)))
+                if cmd.startswith(python + ' ') and ' -l ' not in cmd and 'icmstack' not in cmd and pid not in ancestors]
+
+    def stop_leftovers(self, ctx: Context) -> int:
+        """Agents first (a proxy whose agent is gone stops by itself), then whatever is still there."""
+        left = self.leftovers(ctx)
+        for pid, cmd in sorted(left, key=lambda item: 'protocol_proxy' in item[1]):
+            ctx.out(f'platform: stopping leftover {"proxy" if "protocol_proxy" in cmd else "agent"} process pid {pid}' + ('' if stop_pid(pid, timeout=5) else ' failed'))
+        return len(left)
+
     def start(self, ctx: Context, timeout: float = 900.0) -> None:
         proc = self.process(ctx)
         if proc.running():
@@ -215,13 +239,18 @@ class Platform(Component):
         proc = self.process(ctx)
         strays = self.strays(ctx)
         if not proc.running() and not strays:
-            ctx.out('platform: not running')
+            if self.stop_leftovers(ctx):
+                ctx.out('platform: not running; its leftover processes are stopped')
+            else:
+                ctx.out('platform: not running')
             return
-        vctl(ctx, 'shutdown', '--platform', check=False, timeout=60)
-        wait_for(lambda: not proc.running() and not self.strays(ctx), 30)
+        if env_of(ctx).exists():
+            vctl(ctx, 'shutdown', '--platform', check=False, timeout=60)
+            wait_for(lambda: not proc.running() and not self.strays(ctx), 30)
         proc.stop()
         for pid, _ in self.strays(ctx):
             ctx.out(f'platform: stopping stray pid {pid}' + ('' if stop_pid(pid) else ' failed'))
+        self.stop_leftovers(ctx)
         ctx.out('platform: stopped')
 
     def status(self, ctx: Context) -> Status:
@@ -231,6 +260,9 @@ class Platform(Component):
         detail = f'{ctx.profile.answers.get("instance_name", "")} · {home_of(ctx)}' if installed else ''
         if strays:
             detail += f' · untracked platform process on this home: pid {", ".join(str(p) for p, _ in strays)}'
+        leftovers = self.leftovers(ctx) if not running else []
+        if leftovers:
+            detail += f' · agent processes left behind on this home: pid {", ".join(str(p) for p, _ in leftovers)} (down stops them)'
         return Status(installed, running or bool(strays), detail)
 
     def logs(self, ctx: Context, lines: int = 40) -> str:

@@ -463,3 +463,30 @@ def test_driver_install_from_checkouts_installs_the_transform_library_before_the
     next(Agent(s) for s in SPECS if s.name == 'driver').install(ctx)
     log = (stack['venv'] / 'pip.log').read_text()
     assert log.index(f'-e {modules}/icm-utils/icm-lib-transforms') < log.index(f'-e {tree}/drivers/base-driver') < log.index(f'-e {tree}/drivers/platform-driver-agent')
+
+
+def test_agent_processes_left_behind_by_a_dead_platform_are_reported_and_stopped(stack):
+    """A platform killed rather than shut down (its venv deleted under it) leaves its agents and their proxies running,
+    re-parented to init. They are found by the platform's python and VOLTTRON_HOME; status names them, down stops them,
+    agents before proxies."""
+    import os, subprocess, sys, time
+    from icmstack.processes import pid_alive
+    home = stack['home']; home.mkdir(parents=True, exist_ok=True)
+    python = str(stack['venv'] / 'bin' / 'python')
+    env = {**os.environ, 'VOLTTRON_HOME': str(home)}
+    # argv shows the platform venv's python (what the platform launches agents with); the real interpreter runs them
+    agent = subprocess.Popen([python, '-c', 'import time; time.sleep(300)', 'from bus_adapter.agent import main'], executable=sys.executable, env=env, start_new_session=True)
+    proxy = subprocess.Popen([python, '-c', 'import time; time.sleep(300)', '-m', 'protocol_proxy.proxy'], executable=sys.executable, env=env, start_new_session=True)
+    try:
+        time.sleep(0.3)
+        run(stack['root'], '-y', 'config', '--set', f'volttron_home={home}', '--set', f'venv={stack["venv"]}')
+        code, text = run(stack['root'], 'status')
+        assert f'agent processes left behind on this home: pid' in text and str(agent.pid) in text and str(proxy.pid) in text
+        code, text = run(stack['root'], '-y', 'down')
+        time.sleep(0.5)
+        assert text.index(f'stopping leftover agent process pid {agent.pid}') < text.index(f'stopping leftover proxy process pid {proxy.pid}')
+        assert not pid_alive(agent.pid) and not pid_alive(proxy.pid)
+    finally:
+        for p in (agent, proxy):
+            if p.poll() is None:
+                p.kill()

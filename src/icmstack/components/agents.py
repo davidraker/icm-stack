@@ -9,7 +9,7 @@ from pathlib import Path
 from ..processes import wait_for
 from ..prompts import Question
 from .base import Component, Context, NotReady, Status
-from .checkouts import EXTRA_CHECKOUTS, ICM_LIBS, MODEL_LIBS, checkout_root  # noqa: F401  (ICM_LIBS, MODEL_LIBS: the specs below and the tests)
+from .checkouts import EXTRA_CHECKOUTS, ICM_LIBS, MODEL_LIBS, checkout_root, split_extras  # noqa: F401  (ICM_LIBS, MODEL_LIBS: the specs below and the tests)
 from .platform_modular import Platform, ensure_checkout_libraries, env_of, record_checkouts, vctl
 
 Q_SOURCE = Question('agent_source', 'Install the agents from PyPI releases (pypi) or from your checkouts under $ICM_MODULES and $VOLTTRON_MODULAR_DRIVERS (checkout)',
@@ -66,17 +66,20 @@ class Agent(Component):
         q = self.source_question()
         settled, explicit = ctx.answers.settled(q)
         explicit = explicit if settled else ctx.profile.answers.get(q.key)
+        # A directory source keeps the extras of the released spec ("[discovery,openfmb]"): the agent's optional
+        # dependencies are the same whichever copy of it is installed, and pip accepts them on an editable path.
+        _, extras = split_extras(self.spec.package)
         if explicit:
             path = Path(explicit).expanduser()
             if path.is_dir():
-                return f'-e:{path}', str(path)
+                return f'-e:{path}{extras}', str(path)
             return explicit, explicit if explicit.endswith('.whl') else re.split(r'[\[=<>!~;]', explicit)[0]
         if ctx.answers.ask(Q_SOURCE) == 'checkout':
             root = checkout_root(self.spec.checkout[0])
             if root is None or not (root / self.spec.checkout[1]).is_dir():
                 raise NotReady(f'{self.spec.name}: set {self.spec.checkout[0]} to a directory holding {self.spec.checkout[1]}, or pass --{self.source_question().key.replace("_", "-")}')
             path = root / self.spec.checkout[1]
-            return f'-e:{path}', str(path)
+            return f'-e:{path}{extras}', str(path)
         return self.spec.package, re.split(r'[\[=<>!~;]', self.spec.package)[0]
 
     def install(self, ctx: Context) -> None:

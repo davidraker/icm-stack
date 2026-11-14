@@ -91,7 +91,7 @@ def test_agent_sources(stack, monkeypatch):
     checkout = stack['root'] / 'modules' / 'interoperability_service'; checkout.mkdir(parents=True)
     monkeypatch.setenv('ICM_MODULES', str(stack['root'] / 'modules'))
     ctx = Context(profile, Answers(profile, cli={'agent_source': 'checkout'}, yes=True, interactive=True), out=lambda s: None)
-    assert interop.resolve_source(ctx) == (f'-e:{checkout}', str(checkout))
+    assert interop.resolve_source(ctx) == (f'-e:{checkout}[discovery,openfmb]', str(checkout))    # the extras ride on the checkout
     ctx = Context(profile, Answers(profile, cli={'source_interop': 'interoperability-service==0.3'}, yes=True, interactive=True), out=lambda s: None)
     assert interop.resolve_source(ctx) == ('interoperability-service==0.3', 'interoperability-service')
 
@@ -507,3 +507,21 @@ def test_showroom_empties_the_stores_before_starting(stack, monkeypatch):
     assert 'platform.driver: store file deleted' in text and not list(store.glob('*.store'))
     assert 'platform: running' in text
     run(stack['root'], '-y', 'down')
+
+
+def test_agent_from_a_checkout_keeps_the_extras_of_its_released_spec(stack, monkeypatch):
+    """interoperability-service[discovery,openfmb] from a checkout: pip gets the path with those extras (pysunspec2,
+    protobuf), and vctl the plain path."""
+    from icmstack.components.agents import Agent, SPECS
+    modules = stack['root'] / 'modules'
+    (modules / 'interoperability_service').mkdir(parents=True)
+    monkeypatch.setenv('ICM_MODULES', str(modules))
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.has', lambda self, d: True)
+    monkeypatch.setattr('icmstack.venv.PlatformEnv.editable_projects', lambda self: {})
+    profile = Profile('default', root=stack['root']); profile.answers.update({'venv': str(stack['venv']), 'volttron_home': str(stack['home']), 'agent_source': 'checkout'}); profile.save()
+    ctx = Context(profile, Answers(profile, yes=True, interactive=True), out=lambda s: None)
+    agent = next(Agent(s) for s in SPECS if s.name == 'interop')
+    pip_spec, source = agent.resolve_source(ctx)
+    assert pip_spec == f'-e:{modules}/interoperability_service[discovery,openfmb]' and source == f'{modules}/interoperability_service'
+    agent.install(ctx)
+    assert f'-e {modules}/interoperability_service[discovery,openfmb]' in (stack['venv'] / 'pip.log').read_text()

@@ -25,7 +25,11 @@ def checkout_root(variable: str) -> Path | None:
 
 #: Libraries the agents need beyond their own package, and where their checkouts live when installing from source.
 EXTRA_CHECKOUTS = {'volttron-lib-base-driver': ('VOLTTRON_MODULAR_DRIVERS', 'base-driver'), 'volttron-lib-fake-driver': ('VOLTTRON_MODULAR_DRIVERS', 'interfaces/fake'),
+                   'volttron-lib-modbus-driver': ('VOLTTRON_MODULAR_DRIVERS', 'interfaces/pymodbus'), 'volttron-lib-dnp3-driver': ('VOLTTRON_MODULAR_DRIVERS', 'interfaces/dnp3'),
+                   'volttron-lib-ieee2030_5-driver': ('VOLTTRON_MODULAR_DRIVERS', 'interfaces/ieee2030_5'),
                    'protocol-proxy': ('VOLTTRON_MODULAR_PROXIES', 'protocol-proxy'), 'protocol-proxy-mqtt': ('VOLTTRON_MODULAR_PROXIES', 'mqtt'),
+                   'protocol-proxy-modbus': ('VOLTTRON_MODULAR_PROXIES', 'modbus'), 'protocol-proxy-dnp3': ('VOLTTRON_MODULAR_PROXIES', 'dnp3'),
+                   'protocol-proxy-ieee2030_5': ('VOLTTRON_MODULAR_PROXIES', 'ieee2030_5'),
                    'icm-lib-transforms': ('ICM_MODULES', 'icm-utils/icm-lib-transforms'),
                    'icm-lib-resources[volttron,openfmb]': ('ICM_MODULES', 'icm-utils/icm-lib-resources'),
                    'icm-lib-models-sunspec': ('ICM_MODULES', 'icm-utils/icm-lib-models-sunspec'),
@@ -38,6 +42,11 @@ ICM_LIBS = ('icm-lib-transforms', 'icm-lib-resources[volttron,openfmb]')
 MODEL_LIBS = ('icm-lib-models-sunspec', 'icm-lib-models-ieee1815-2', 'icm-lib-models-ieee2030-5', 'icm-lib-models-openfmb')
 #: The libraries without a release yet: always from icm-utils in checkout mode, whichever agent is being installed.
 UNRELEASED_LIBS = ICM_LIBS + MODEL_LIBS
+#: The protocols the dummy devices speak: the driver's interface and the proxy each one launches. Installed with the
+#: driver; one that cannot be installed is reported, not fatal, since the driver runs without it (that protocol's
+#: devices then fail to start).
+PROTOCOL_PACKAGES = ('protocol-proxy', 'volttron-lib-modbus-driver', 'protocol-proxy-modbus', 'volttron-lib-dnp3-driver', 'protocol-proxy-dnp3',
+                     'volttron-lib-ieee2030_5-driver', 'protocol-proxy-ieee2030_5')
 
 
 def split_extras(package: str) -> tuple[str, str]:

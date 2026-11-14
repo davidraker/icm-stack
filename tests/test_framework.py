@@ -264,7 +264,8 @@ def test_reset_config_with_platform_stopped_deletes_store_files(stack):
 def test_extra_packages_come_from_checkouts_when_agents_do(stack, monkeypatch):
     from icmstack.components.agents import Agent, SPECS
     tree = stack['root'] / 'modular'
-    for sub in ('drivers/base-driver', 'drivers/interfaces/fake', 'drivers/platform-driver-agent', 'proxies/protocol-proxy', 'proxies/mqtt'):
+    for sub in ('drivers/base-driver', 'drivers/interfaces/fake', 'drivers/interfaces/pymodbus', 'drivers/interfaces/dnp3', 'drivers/interfaces/ieee2030_5',
+                'drivers/platform-driver-agent', 'proxies/protocol-proxy', 'proxies/mqtt', 'proxies/modbus', 'proxies/dnp3', 'proxies/ieee2030_5'):
         (tree / sub).mkdir(parents=True)
     monkeypatch.setenv('VOLTTRON_MODULAR_DRIVERS', str(tree / 'drivers'))
     monkeypatch.delenv('VOLTTRON_MODULAR_PROXIES', raising=False)
@@ -274,6 +275,9 @@ def test_extra_packages_come_from_checkouts_when_agents_do(stack, monkeypatch):
     next(Agent(s) for s in SPECS if s.name == 'driver').install(ctx)
     log = (stack['venv'] / 'pip.log').read_text()
     assert f'-e {tree}/drivers/platform-driver-agent' in log and f'-e {tree}/drivers/base-driver' in log and f'-e {tree}/drivers/interfaces/fake' in log
+    # the protocols the dummy devices speak come with the driver: interfaces from the drivers tree, proxies from beside it
+    for sub in ('drivers/interfaces/pymodbus', 'drivers/interfaces/dnp3', 'drivers/interfaces/ieee2030_5', 'proxies/protocol-proxy', 'proxies/modbus', 'proxies/dnp3', 'proxies/ieee2030_5'):
+        assert f'-e {tree}/{sub}' in log, sub
 
 
 def test_shared_libraries_install_from_the_icm_utils_checkout_before_the_agent(stack, monkeypatch):

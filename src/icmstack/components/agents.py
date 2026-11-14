@@ -9,7 +9,7 @@ from pathlib import Path
 from ..processes import wait_for
 from ..prompts import Question
 from .base import Component, Context, NotReady, Status
-from .checkouts import EXTRA_CHECKOUTS, ICM_LIBS, MODEL_LIBS, checkout_root, split_extras  # noqa: F401  (ICM_LIBS, MODEL_LIBS: the specs below and the tests)
+from .checkouts import EXTRA_CHECKOUTS, ICM_LIBS, MODEL_LIBS, PROTOCOL_PACKAGES, checkout_root, split_extras  # noqa: F401  (ICM_LIBS, MODEL_LIBS: the specs below and the tests)
 from .platform_modular import Platform, ensure_checkout_libraries, env_of, record_checkouts, vctl
 
 Q_SOURCE = Question('agent_source', 'Install the agents from PyPI releases (pypi) or from your checkouts under $ICM_MODULES and $VOLTTRON_MODULAR_DRIVERS (checkout)',
@@ -26,13 +26,14 @@ class AgentSpec:
     checkout: tuple[str, str]         # (variable, subdirectory)
     description: str
     extra_packages: tuple[str, ...] = ()
+    protocol_packages: tuple[str, ...] = ()   # interfaces and proxies of the protocols; best effort, see PROTOCOL_PACKAGES
     wants: tuple[str, ...] = ()
     optional: bool = False
 
 
 SPECS = [
     AgentSpec('driver', 'platform.driver', 'driver', 'volttron-platform-driver', ('VOLTTRON_MODULAR_DRIVERS', 'platform-driver-agent'),
-              'platform driver agent', extra_packages=('volttron-lib-base-driver', 'volttron-lib-fake-driver')),
+              'platform driver agent', extra_packages=('volttron-lib-base-driver', 'volttron-lib-fake-driver'), protocol_packages=PROTOCOL_PACKAGES),
     AgentSpec('interop', 'platform.presentation', 'interop', 'interoperability-service[discovery,openfmb]', ('ICM_MODULES', 'interoperability_service'),
               'interoperability service agent', extra_packages=ICM_LIBS + MODEL_LIBS),
     AgentSpec('resource-bridge', 'platform.resource_bridge', 'resource_bridge', 'volttron-resource-bridge', ('ICM_MODULES', 'resource-bridge'),
@@ -111,9 +112,24 @@ class Agent(Component):
             missing = [p for p in self.spec.extra_packages if not env.has(re.split(r'\[', p)[0])]
             if missing:
                 env.pip_install(missing, ctx.out)
+        self._install_protocols(ctx, env)
         if env.has_exe('protocol-proxy-manifests'):
             env.run(['protocol-proxy-manifests', 'export'], check=False)
         ctx.out(f'{self.name}: installed in {env.path}')
+
+    def _install_protocols(self, ctx: Context, env) -> None:
+        """The protocol interfaces and proxies: from their checkouts in checkout mode, else from PyPI; failures reported."""
+        from_checkouts = ctx.profile.answers.get('agent_source') == 'checkout'
+        for package in self.spec.protocol_packages:
+            variable, subdir = EXTRA_CHECKOUTS.get(package, (None, None))
+            root = checkout_root(variable) if (from_checkouts and variable) else None
+            try:
+                if root is not None and (root / subdir).is_dir():
+                    env.pip_install([str(root / subdir)], ctx.out, editable=True)
+                elif not env.has(package):
+                    env.pip_install([package], ctx.out)
+            except Exception as e:      # the driver runs without this protocol; its devices will say what is missing
+                ctx.out(f'{self.name}: {package} not installed ({str(e).strip().splitlines()[-1][:160]}); devices of that protocol will not start')
 
     def registered(self, ctx: Context) -> str | None:
         """'running', 'stopped' or None when vctl does not list the identity (or the platform is down)."""

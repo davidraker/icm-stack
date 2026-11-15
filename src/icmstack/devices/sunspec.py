@@ -206,7 +206,7 @@ def main(argv=None) -> int:
                 for name, base, swing, period in live:
                     device.set_point(name, int(round(base + swing * math.sin(2 * math.pi * t / period))))
                 if int(t) % 60 == 0:
-                    print(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ' readings: ' + ', '.join(f'{name}={device.get_point(name)}' for name, *_ in live), flush=True)
+                    print(datetime.now().strftime('%Y-%m-%d %H:%M:%S') + f' moving readings (raw register values; {len(device.table.points)} points served in all): ' + ', '.join(f'{name}={device.get_point(name)}' for name, *_ in live), flush=True)
                 time.sleep(args.period); t += args.period
             else:
                 time.sleep(3600)

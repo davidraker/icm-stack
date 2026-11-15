@@ -71,7 +71,7 @@ def main(argv=None) -> int:
         try:
             decoded = decode(candidate, message.payload)
         except Exception as e:
-            say(f'received {message.topic}: {len(message.payload)} bytes, not decodable as {candidate}: {e}')
+            say(f'RECEIVED {message.topic}: {len(message.payload)} bytes, not decodable as {candidate}: {e}')
             return
         summary = ''
         reading = decoded.get('solarReading') or decoded.get('essReading')
@@ -79,14 +79,14 @@ def main(argv=None) -> int:
             mmxu = reading.get('readingMMXU', {})
             w = mmxu.get('W', {}).get('net', {}).get('cVal', {}).get('mag'); hz = mmxu.get('Hz', {}).get('mag')
             summary = f' W={w} Hz={hz}'
-        say(f'received {message.topic} as {candidate}:{summary} {json.dumps(decoded)[:300]}')
+        say(f'RECEIVED {message.topic} as {candidate}:{summary} {json.dumps(decoded)[:300]}')
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=args.client_id)
     client.on_message = on_message
     client.connect(args.host, args.port, keepalive=30)
     client.loop_start()
     client.subscribe(args.subscribe, qos=1)
-    say(f'openfmb party: broker {args.host}:{args.port}, publishing {proto} on {topic} every {args.interval} s, logging {args.subscribe}')
+    say(f'openfmb party: broker {args.host}:{args.port}. Simulates another DER: publishes its own {proto} on {topic} every {args.interval} s ("own reading" lines). Logs what anyone else publishes under {args.subscribe} ("RECEIVED" lines): that is where the platform\'s aliases appear.')
     control_topic = f'openfmb/{args.family}module/{profile}ControlProfile/{args.control_mrid}'
     last_control = None
 
@@ -103,7 +103,7 @@ def main(argv=None) -> int:
                 payload = reading_payload(args.family, args.mrid, w=round(4000 + 500 * math.sin(t / 60), 1), var=round(300 + 50 * math.cos(t / 60), 1),
                                           hz=round(60 + 0.02 * math.sin(t / 30), 3), phase_v=round(240 + 2 * math.sin(t / 45), 1))
                 client.publish(topic, encode(proto, payload), qos=1)
-                say(f'published W={payload[list(payload)[1]]["readingMMXU"]["W"]["net"]["cVal"]["mag"]} on {topic}')
+                say(f'own reading published, W={payload[list(payload)[1]]["readingMMXU"]["W"]["net"]["cVal"]["mag"]} on {topic}')
                 n += 1
                 time.sleep(args.interval)
             else:

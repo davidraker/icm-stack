@@ -15,6 +15,7 @@ from .base import Component, Context, NotReady, Status
 RPC_ALLOW_LIST = [
     'platform.presentation: resolve, list_formats, list_transforms, describe_transform, chain_report, compile_pattern, edge_report, preview, check_references, discover',
     'platform.resource_bridge: statistics',
+    'platform.driver: health, status',
 ]
 
 

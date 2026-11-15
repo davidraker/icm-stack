@@ -8,8 +8,8 @@ PRESETS: dict[str, dict] = {
              'description': 'minimal plus Resource Bridge, bus adapter, broker, a SunSpec device and an OpenFMB party, registered and bridged'},
     # The parties that talk to a device the platform serves (dnp3-master, sep2-client) are started when a path needs them.
     'showroom': {'components': FRAMEWORK_CORE + ['resource-bridge', 'bus-adapter', 'broker', 'sunspec-device', 'openfmb-party', 'dnp3-outstation', 'sep2-server'],
-                 'register': False, 'reset': True, 'optional': ['rtc', 'scheduler'],
-                 'description': 'everything running, nothing configured: the agents\' stores are emptied, the configuration is the demonstration'},
+                 'register': False, 'optional': ['rtc', 'scheduler'],
+                 'description': 'everything running, nothing registered by the tool: the configuration is the demonstration (up --fresh empties the stores first)'},
     'matrix': {'components': FRAMEWORK_CORE + ['resource-bridge', 'bus-adapter', 'broker', 'sunspec-device', 'openfmb-party',
                                                'dnp3-outstation', 'dnp3-master', 'sep2-server', 'sep2-client'], 'register': True,
                'wire': 'all', 'description': 'demo plus the container devices in both roles, with every showcase path wired (icmstack wire --list)'},

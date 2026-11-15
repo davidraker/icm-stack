@@ -5,7 +5,8 @@ the configuration UI, a broker) and the dummy devices used to test and demonstra
 
 ```
 icmstack                      # menu: what is installed and running, pick a component or a preset
-icmstack up [PRESET]          # install and start a preset (minimal, demo, showroom, matrix, ui-dev)
+icmstack up [PRESET]          # install and start a preset (minimal, demo, showroom, matrix, ui-dev); what exists is kept
+icmstack up --fresh [PRESET]  # the same from empty configuration stores: a new set-up rather than a restart
 icmstack down                 # stop everything of the profile, reverse dependency order
 icmstack status               # one line per component
 icmstack start NAME…          # start components (and what they need, after asking)
@@ -30,9 +31,10 @@ the container devices `dnp3-outstation` and `dnp3-master` (the IEEE 1815.2 test 
 `sep2-server` and `sep2-client` (the GridAPPS-D Go implementations, images `sep2server:e2e` and `inverterclient:e2e`).
 Each registers with the platform; the two served-role parties register the device the platform serves for them.
 `icmstack up demo` wires the SunSpec device's readings to an OpenFMB profile on the broker; `up matrix` adds the
-container devices in both roles; `up showroom` runs everything with nothing configured: it empties the agents'
-configuration stores first (after asking; `-y` agrees) so the demonstration starts from the Devices tab, and leaves the
-two parties that need a served device (`dnp3-master`, `sep2-client`) for `icmstack start` when a path needs them.
+container devices in both roles; `up showroom` runs everything and registers nothing, so the demonstration starts from
+the Devices tab; it leaves the two parties that need a served device (`dnp3-master`, `sep2-client`) for `icmstack start`
+when a path needs them. `up` keeps whatever the agents' stores hold, so stopping and starting a showroom keeps its
+devices; `up --fresh showroom` empties the stores first (after asking; `-y` agrees) for a new demonstration.
 `icmstack doctor` lists what
 the machine has and lacks. The fastlib platform backend is not available yet and says so.
 

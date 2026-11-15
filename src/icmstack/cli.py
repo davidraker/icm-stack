@@ -43,6 +43,7 @@ class Cli:
         answers = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
         add_question_options(answers, self.all_questions())
         s = sub.add_parser('up', parents=[answers], help='install and start a preset'); s.add_argument('preset', nargs='?', default='demo', choices=sorted(PRESETS))
+        s.add_argument('--fresh', action='store_true', help='a fresh set-up: empty the agents\' configuration stores first (after asking), so nothing from an earlier run remains')
         s.add_argument('--with', dest='with_', default='', help='comma-separated optional components to add (rtc, scheduler)')
         sub.add_parser('down', help='stop everything of the profile, reverse dependency order')
         sub.add_parser('status', help='one line per component')
@@ -266,9 +267,9 @@ class Cli:
                 names.append(optional)
         ctx.profile.answers['preset'] = args.preset
         self.out(f'{args.preset}: {preset["description"]}')
-        if preset.get('reset'):
-            # "Nothing configured" includes what earlier runs of this profile left in the agents' stores.
-            self.reset_stores(ctx, default=True, label=args.preset, reason=f'{args.preset} starts from empty configuration stores. ')
+        if getattr(args, 'fresh', False):
+            # A fresh set-up: what earlier runs of this profile left in the agents' stores goes; a plain up starts what exists.
+            self.reset_stores(ctx, default=True, label=args.preset, reason='A fresh set-up starts from empty configuration stores. ')
         # Parties that talk to a device the platform serves start after registration has written that served device.
         late = [n for n in names if getattr(self.registry[n], 'after_register', False)]
         code = self._run(ctx, [n for n in names if n not in late], 'start')

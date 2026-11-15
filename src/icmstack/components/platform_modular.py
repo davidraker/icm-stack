@@ -13,9 +13,8 @@ from ..venv import PLATFORM_PACKAGES, POETRY_EXCLUDE, POETRY_LOCAL_CONFIG, Platf
 from .base import Component, Context, NotReady, Status
 
 RPC_ALLOW_LIST = [
-    'platform.presentation: resolve, list_formats, list_transforms, describe_transform, chain_report, compile_pattern, edge_report, preview, check_references, discover',
+    'platform.presentation: resolve, list_formats, list_transforms, describe_transform, chain_report, compile_pattern, edge_report, preview, check_references, discover, driver_health, driver_status',
     'platform.resource_bridge: statistics',
-    'platform.driver: health, status',
 ]
 
 

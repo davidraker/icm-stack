@@ -49,6 +49,7 @@ class Cli:
         for name, text in (('start', 'start components, and what they need after asking'), ('stop', 'stop components'), ('restart', 'stop then start'), ('install', 'install only')):
             s = sub.add_parser(name, parents=[answers], help=text); s.add_argument('names', nargs='+')
         s = sub.add_parser('logs', help='the last lines of a component\'s log'); s.add_argument('name'); s.add_argument('-n', '--lines', type=int, default=40)
+        s.add_argument('-f', '--follow', action='store_true', help='keep printing new lines until interrupted')
         s = sub.add_parser('register', parents=[answers], help='write a device\'s registry, device entry and resource into the platform')
         s.add_argument('name'); s.add_argument('--print', dest='print_only', action='store_true', help='only print the device\'s connection details')
         s = sub.add_parser('wire', parents=[answers], help='wire a showcase path (aliases, bridges, bus adapter entries) into the platform')
@@ -190,8 +191,12 @@ class Cli:
         return 0
 
     def do_logs(self, ctx, args) -> int:
-        text = self.registry[args.name].logs(ctx, args.lines)
+        component = self.registry[args.name]
+        text = component.logs(ctx, args.lines)
         self.out(text.rstrip('\n') if text else f'{args.name}: no log')
+        if getattr(args, 'follow', False):
+            from .processes import follow_logs
+            follow_logs(component, ctx, self.out, previous=text)
         return 0
 
     def _run(self, ctx, names: list[str], action: str, with_needs: bool = True) -> int:

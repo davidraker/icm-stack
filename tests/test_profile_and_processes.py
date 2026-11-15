@@ -28,3 +28,22 @@ def test_managed_process_start_status_stop(tmp_path):
     assert not proc.pidfile.exists()
     proc.pidfile.write_text('999999')                 # a stale pidfile reads as not running and is removed
     assert not proc.running() and not proc.pidfile.exists()
+
+
+def test_follow_logs_prints_only_new_lines(tmp_path):
+    """Following reads the component's logs() again and again and prints what was not in the last reading."""
+    import threading
+    from icmstack.processes import follow_logs
+    log = tmp_path / 'x.log'; log.write_text('a\nb\n')
+
+    class Comp:
+        def logs(self, ctx, lines=40):
+            return ''.join(log.read_text().splitlines(keepends=True)[-lines:])
+    out, ticks = [], {'n': 0}
+    def stop():
+        ticks['n'] += 1
+        if ticks['n'] == 2: log.write_text('a\nb\nc\nd\n')
+        if ticks['n'] == 3: log.write_text('a\nb\nc\nd\ne\n')
+        return ticks['n'] > 4
+    follow_logs(Comp(), None, out.append, previous='a\nb\n', stop=stop, interval=0.01)
+    assert out == ['c', 'd', 'e']

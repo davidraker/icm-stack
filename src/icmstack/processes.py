@@ -191,3 +191,26 @@ def stop_pid(pid: int, timeout: float = 20.0) -> bool:
         if not pid_alive(pid):
             return True
     return not pid_alive(pid)
+
+
+def follow_logs(component, ctx, out=print, previous: str = '', stop=None, interval: float = 1.0) -> None:
+    """Print a component's new log lines as they appear, until interrupted (or ``stop()`` says so). Works through the
+    component's own ``logs()``: whatever it reads (a process log, the platform log filtered to an agent, a container),
+    the lines that were not in the previous reading are new."""
+    seen = previous.rstrip('\n').splitlines()
+    try:
+        while not (stop and stop()):
+            time.sleep(interval)
+            lines = component.logs(ctx, 400).rstrip('\n').splitlines()
+            # find where the previous reading ends inside the new one: the longest suffix of seen that prefixes a tail of lines
+            start = 0
+            for n in range(min(len(seen), len(lines)), 0, -1):
+                if lines[:n] == seen[-n:] or any(lines[i:i + n] == seen[-n:] for i in range(len(lines) - n + 1)):
+                    position = next(i for i in range(len(lines) - n + 1) if lines[i:i + n] == seen[-n:])
+                    start = position + n
+                    break
+            for line in lines[start:]:
+                out(line)
+            seen = lines
+    except KeyboardInterrupt:
+        pass

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 import math
 import sys
 import time
@@ -28,6 +29,12 @@ def control_payload(family: str, mrid: str, limit_pct: float, enabled: bool = Tr
     a, b, c = (('solarControl', 'solarControlFSCC', 'SolarControlScheduleFSCH') if family == 'solar' else ('essControl', 'essControlFSCC', 'essControlScheduleFSCH'))
     entry = {'startTime': {'seconds': int(time.time())}, 'control': {'limitWOperation': {'maxLimParameter': {'modEna': enabled}, 'wMaxSptVal': limit_pct}}}
     return {'controlMessageInfo': {'messageInfo': {'identifiedObject': {'mRID': mrid}}}, a: {b: {c: {'ValDCSG': {'crvPts': [entry]}}}}}
+
+
+
+def say(text: str) -> None:
+    """A log line with the local time, so a watcher can relate it to the platform's and the broker's logs."""
+    print(f'{datetime.now().strftime("%Y-%m-%d %H:%M:%S")} {text}', flush=True)
 
 
 def main(argv=None) -> int:
@@ -64,7 +71,7 @@ def main(argv=None) -> int:
         try:
             decoded = decode(candidate, message.payload)
         except Exception as e:
-            print(f'received {message.topic}: {len(message.payload)} bytes, not decodable as {candidate}: {e}', flush=True)
+            say(f'received {message.topic}: {len(message.payload)} bytes, not decodable as {candidate}: {e}')
             return
         summary = ''
         reading = decoded.get('solarReading') or decoded.get('essReading')
@@ -72,20 +79,20 @@ def main(argv=None) -> int:
             mmxu = reading.get('readingMMXU', {})
             w = mmxu.get('W', {}).get('net', {}).get('cVal', {}).get('mag'); hz = mmxu.get('Hz', {}).get('mag')
             summary = f' W={w} Hz={hz}'
-        print(f'received {message.topic} as {candidate}:{summary} {json.dumps(decoded)[:300]}', flush=True)
+        say(f'received {message.topic} as {candidate}:{summary} {json.dumps(decoded)[:300]}')
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=args.client_id)
     client.on_message = on_message
     client.connect(args.host, args.port, keepalive=30)
     client.loop_start()
     client.subscribe(args.subscribe, qos=1)
-    print(f'openfmb party: broker {args.host}:{args.port}, publishing {proto} on {topic} every {args.interval} s, logging {args.subscribe}', flush=True)
+    say(f'openfmb party: broker {args.host}:{args.port}, publishing {proto} on {topic} every {args.interval} s, logging {args.subscribe}')
     control_topic = f'openfmb/{args.family}module/{profile}ControlProfile/{args.control_mrid}'
     last_control = None
 
     def publish_control(limit: float):
         client.publish(control_topic, encode(control, control_payload(args.family, args.control_mrid, limit)), qos=1)
-        print(f'published control limit {limit} % on {control_topic}', flush=True)
+        say(f'published control limit {limit} % on {control_topic}')
     n = 0
     try:
         while True:
@@ -96,7 +103,7 @@ def main(argv=None) -> int:
                 payload = reading_payload(args.family, args.mrid, w=round(4000 + 500 * math.sin(t / 60), 1), var=round(300 + 50 * math.cos(t / 60), 1),
                                           hz=round(60 + 0.02 * math.sin(t / 30), 3), phase_v=round(240 + 2 * math.sin(t / 45), 1))
                 client.publish(topic, encode(proto, payload), qos=1)
-                print(f'published W={payload[list(payload)[1]]["readingMMXU"]["W"]["net"]["cVal"]["mag"]} on {topic}', flush=True)
+                say(f'published W={payload[list(payload)[1]]["readingMMXU"]["W"]["net"]["cVal"]["mag"]} on {topic}')
                 n += 1
                 time.sleep(args.interval)
             else:

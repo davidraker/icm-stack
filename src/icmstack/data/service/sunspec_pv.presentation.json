@@ -2,7 +2,7 @@
   "formats": {
     "fake_sunspec_pv": {
       "hub": false,
-      "scaling": "transform",
+      "scaling": "service",
       "fields": [
         "1_DA",
         "1_Md",

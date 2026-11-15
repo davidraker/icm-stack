@@ -2,7 +2,7 @@
  "formats": {
   "fake_dnp3_der": {
    "hub": false,
-   "scaling": "transform",
+   "scaling": "service",
    "fields": [
     "AI_10",
     "AI_11",
@@ -135,7 +135,7 @@
   },
   "fake_dnp3_der_served": {
    "hub": false,
-   "scaling": "transform",
+   "scaling": "service",
    "fields": [
     "AI_10",
     "AI_11",

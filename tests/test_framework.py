@@ -535,3 +535,19 @@ def test_agent_from_a_checkout_keeps_the_extras_of_its_released_spec(stack, monk
     assert pip_spec == f'-e:{modules}/interoperability_service[discovery,openfmb]' and source == f'{modules}/interoperability_service'
     agent.install(ctx)
     assert f'-e {modules}/interoperability_service[discovery,openfmb]' in (stack['venv'] / 'pip.log').read_text()
+
+
+def test_up_starts_the_standalone_devices_before_the_driver(stack):
+    """A driver started before the device it polls reads its poll-once registers once, fails, and derives every scaled
+    point from nothing until restarted; up starts the devices that need no driver first."""
+    code, text = run(stack['root'], '-y', 'up', 'minimal', *stack['common'])
+    # minimal's fake-device needs the driver and must still come after it; the sunspec dummy would come first
+    from icmstack.components import default_registry
+    registry = default_registry()
+    assert 'driver' in registry['fake-device'].needs
+    lines = [l for l in text.splitlines() if l.startswith(('driver:', 'fake-device:'))]
+    assert lines and lines[0].startswith('driver:')
+    code, text = run(stack['root'], '-y', 'start', 'sunspec-device', 'driver', *stack['common'], '--sunspec-port', str(free_port()))
+    order = [l.split(':')[0] for l in text.splitlines() if l.startswith(('sunspec-device:', 'driver:'))]
+    assert order and order[0] == 'sunspec-device' or 'sunspec-device' not in order, order
+    run(stack['root'], '-y', 'down')

@@ -272,7 +272,10 @@ class Cli:
             self.reset_stores(ctx, default=True, label=args.preset, reason='A fresh set-up starts from empty configuration stores. ')
         # Parties that talk to a device the platform serves start after registration has written that served device.
         late = [n for n in names if getattr(self.registry[n], 'after_register', False)]
-        code = self._run(ctx, [n for n in names if n not in late], 'start')
+        # The dummy devices the driver polls come up first: a driver that starts before its device reads the poll-once
+        # registers (SunSpec scale factors) once, fails, and derives every scaled point from nothing until restarted.
+        early = [n for n in names if n not in late and self.registry[n].group == 'device' and 'driver' not in self.registry[n].needs]
+        code = self._run(ctx, early + [n for n in names if n not in late and n not in early], 'start')
         if preset.get('register'):
             for name in names:
                 if self.registry[name].group == 'device' and name != 'fake-device':    # the fake device registers when started

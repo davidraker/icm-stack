@@ -213,6 +213,7 @@ class Cli:
                 dependents = [d for d in self.registry.dependents(name) if self.registry[d].status(ctx).running]
                 if dependents and not ctx.answers.confirm(f'{", ".join(dependents)} depend on {name}; stop {name} anyway?', default=False):
                     order.remove(name)
+                    self.out(f'{name}: left running, {", ".join(dependents)} depend on it (stop those first, or answer yes)')
         failures, failed = 0, set()
         # Installs of every component first, then the starts: the web section is then in the platform's config before
         # its first start, and a failed install blocks the starts that would have needed it.

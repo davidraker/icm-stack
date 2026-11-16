@@ -569,3 +569,11 @@ def test_containers_carry_the_roots_label_and_down_removes_only_labelled_ones(st
     ps_call = next(c for c in fake_docker.read_text().splitlines() if c.startswith('ps '))
     assert '--filter name=^icmstack-default-' in ps_call and f'--filter label={OWNER_LABEL}={stack["root"]}' in ps_call
     assert not any(c.startswith('rm ') for c in fake_docker.read_text().splitlines()[calls.index(run_call) + 1:]), 'nothing of another root is removed'
+
+
+def test_stop_of_a_component_others_depend_on_says_why_it_was_left_running(stack):
+    run(stack['root'], '-y', 'start', 'driver', *stack['common'])
+    code, text = run(stack['root'], '-y', 'stop', 'platform')          # -y takes the default: no
+    assert code == 0 and 'platform: left running' in text and 'depend on it' in text
+    code, status = run(stack['root'], 'status')
+    assert 'platform         running' in status

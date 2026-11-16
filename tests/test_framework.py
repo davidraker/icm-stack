@@ -551,3 +551,21 @@ def test_up_starts_the_standalone_devices_before_the_driver(stack):
     order = [l.split(':')[0] for l in text.splitlines() if l.startswith(('sunspec-device:', 'driver:'))]
     assert order and order[0] == 'sunspec-device' or 'sunspec-device' not in order, order
     run(stack['root'], '-y', 'down')
+
+
+def test_containers_carry_the_roots_label_and_down_removes_only_labelled_ones(stack, fake_docker):
+    """Two roots can both have a profile called default. Every container the tool starts is labelled with its root, and
+    the `down` fallback (nothing recorded as started) removes only containers that carry this root's label: a test's
+    `down` must never take out the real stack's broker."""
+    from icmstack.processes import Container, OWNER_LABEL, owned_containers
+    profile = Profile('default', root=stack['root'])
+    Container('broker', profile).run('eclipse-mosquitto:2', ports={'1883': '1883'})
+    calls = fake_docker.read_text().splitlines()
+    run_call = next(c for c in calls if c.startswith('run '))
+    assert f'--label {OWNER_LABEL}={stack["root"]}' in run_call and '--name icmstack-default-broker' in run_call
+    assert owned_containers(profile) == []
+    code, text = run(stack['root'], '-y', 'down')
+    assert code == 0 and 'nothing is recorded as started' in text
+    ps_call = next(c for c in fake_docker.read_text().splitlines() if c.startswith('ps '))
+    assert '--filter name=^icmstack-default-' in ps_call and f'--filter label={OWNER_LABEL}={stack["root"]}' in ps_call
+    assert not any(c.startswith('rm ') for c in fake_docker.read_text().splitlines()[calls.index(run_call) + 1:]), 'nothing of another root is removed'

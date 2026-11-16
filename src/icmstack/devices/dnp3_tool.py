@@ -100,15 +100,15 @@ def trimmed(profile: dict, ai=(), ao=(), bi=(), bo=()) -> dict:
 
 
 class Container:
-    def __init__(self, name: str, profile: dict, work: Path, log_level: str = 'info'):
-        self.name, self.work, self.log_level = name, Path(work), log_level
+    def __init__(self, name: str, profile: dict, work: Path, log_level: str = 'info', labels: list[str] = ()):
+        self.name, self.work, self.log_level, self.labels = name, Path(work), log_level, list(labels)
         self.work.mkdir(parents=True, exist_ok=True)
         self.profile_path = self.work / f'{name}.profile.json'
         self.profile_path.write_text(json.dumps(profile))
 
     def run(self, binary: str, *args: str) -> None:
         subprocess.run(['docker', 'rm', '-f', self.name], capture_output=True)
-        cmd = ['docker', 'run', '-d', '--name', self.name, '--network', 'host', '-v', f'{CACHE_VOLUME}:/t:ro',
+        cmd = ['docker', 'run', '-d', '--name', self.name, *self.labels, '--network', 'host', '-v', f'{CACHE_VOLUME}:/t:ro',
                '-v', f'{self.work}:/work:ro', IMAGE, f'/t/debug/{binary}', '--profile', f'/work/{self.profile_path.name}',
                '--log-level', self.log_level, *args]
         done = subprocess.run(cmd, capture_output=True, text=True)

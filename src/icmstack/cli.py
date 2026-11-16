@@ -300,9 +300,12 @@ class Cli:
     def do_down(self, ctx, args) -> int:
         started = [n for n in ctx.profile.state['started'] if n in self.registry]
         if not started:
-            # Nothing recorded (a deleted profile, a crashed run): still stop what carries this profile's name or home.
+            # Nothing recorded (a deleted profile, a crashed run): still stop what carries this profile's name and this
+            # root's ownership label, or this home. The label matters: another root (a test's) may have a profile of the
+            # same name, and its containers are not ours to remove.
             import subprocess
-            names = subprocess.run(['docker', 'ps', '-aq', '--filter', f'name=^icmstack-{ctx.profile.name}-'], capture_output=True, text=True).stdout.split()
+            from .processes import owned_containers
+            names = owned_containers(ctx.profile)
             if names:
                 subprocess.run(['docker', 'rm', '-f', *names], capture_output=True)
                 self.out(f'stopped {len(names)} container(s) of profile {ctx.profile.name}')

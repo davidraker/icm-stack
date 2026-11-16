@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from ...devices import dnp3_tool, sep2
-from ...processes import docker_available, port_open, wait_for
+from ...processes import docker_available, owner_labels, port_open, wait_for
 from ...prompts import Question
 from ..base import Component, Context, NotReady, Status
 
@@ -64,7 +64,7 @@ class Dnp3Base(ContainerDevice):
             raise NotReady(f'{self.name}: {why}')
 
     def container(self, ctx: Context, profile: dict) -> dnp3_tool.Container:
-        return dnp3_tool.Container(self.container_name(ctx), profile, ctx.profile.dir / 'dnp3')
+        return dnp3_tool.Container(self.container_name(ctx), profile, ctx.profile.dir / 'dnp3', labels=owner_labels(ctx.profile))
 
     def running(self, ctx: Context) -> bool:
         return sep2.container_running(self.container_name(ctx))
@@ -242,7 +242,7 @@ class Sep2Server(Sep2Base):
         lfdi = sep2.lfdi_from_cert(certs['device_cert'])
         fixture = ctx.profile.dir / 'sep2' / 'fixture' / 'boot.yaml'
         sep2.write_fixture(fixture, lfdi, sep2.sfdi_from_lfdi(lfdi))
-        sep2.start_server(self.container_name(ctx), self.cert_dir(ctx), fixture, int(a['sep2_port']), int(a['sep2_admin_port']), ctx.profile.dir / 'sep2' / 'capture')
+        sep2.start_server(self.container_name(ctx), self.cert_dir(ctx), fixture, int(a['sep2_port']), int(a['sep2_admin_port']), ctx.profile.dir / 'sep2' / 'capture', labels=owner_labels(ctx.profile))
         ctx.out(f'{self.name}: https://127.0.0.1:{a["sep2_port"]} (admin http://127.0.0.1:{a["sep2_admin_port"]}), end device LFDI {lfdi}')
 
     def status(self, ctx: Context) -> Status:
@@ -304,7 +304,7 @@ class Sep2Client(Sep2Base):
             raise NotReady(f'sep2-client: no served 2030.5 server at devices/{topic}; run icmstack register sep2-client first')
         if not wait_for(lambda: port_open('127.0.0.1', int(a['sep2_served_port'])), 60):
             raise NotReady(f'sep2-client: nothing listens on 127.0.0.1:{a["sep2_served_port"]}; is the driver\'s served 2030.5 server up?')
-        sep2.start_client(self.container_name(ctx), self.cert_dir(ctx), f'https://127.0.0.1:{a["sep2_served_port"]}', int(a['sep2_served_pin']), int(a['sep2_client_notify_port']))
+        sep2.start_client(self.container_name(ctx), self.cert_dir(ctx), f'https://127.0.0.1:{a["sep2_served_port"]}', int(a['sep2_served_pin']), int(a['sep2_client_notify_port']), labels=owner_labels(ctx.profile))
         ctx.out(f'{self.name}: registering with https://127.0.0.1:{a["sep2_served_port"]} (PIN {a["sep2_served_pin"]})')
 
     def status(self, ctx: Context) -> Status:

@@ -30,3 +30,32 @@ def answers_factory(profile):
         a.input = fn
         return a
     return make
+
+
+FAKE_DOCKER = r'''#!/bin/sh
+# The test suite's docker: records every call and owns nothing. "info" fails (docker is not available to the tests),
+# "ps" lists nothing, "inspect" finds nothing, and the mutating commands succeed without doing anything.
+echo "$@" >> "$FAKE_DOCKER_LOG"
+case "$1" in
+  info|inspect|image|volume) exit 1 ;;
+  ps) exit 0 ;;
+  run) echo 0123456789ab ;;
+esac
+exit 0
+'''
+
+
+@pytest.fixture(autouse=True)
+def fake_docker(tmp_path_factory, monkeypatch):
+    """No test may reach the real docker daemon. Container names carry only the profile name, and the tests use the
+    profile "default" under a temporary root, so a `down` in a test once removed the real default stack's broker and
+    device containers. A recording `docker` goes first on PATH for every test; `fake_docker.log` lists the calls."""
+    bin_dir = tmp_path_factory.mktemp('fakedocker')
+    script = bin_dir / 'docker'
+    script.write_text(FAKE_DOCKER)
+    script.chmod(0o755)
+    log = bin_dir / 'calls.log'
+    log.touch()
+    monkeypatch.setenv('FAKE_DOCKER_LOG', str(log))
+    monkeypatch.setenv('PATH', f'{bin_dir}:{__import__("os").environ.get("PATH", "")}')
+    return log

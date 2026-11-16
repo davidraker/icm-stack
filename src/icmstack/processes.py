@@ -102,11 +102,29 @@ def docker_has_volume(volume: str) -> bool:
     return subprocess.run(['docker', 'volume', 'inspect', volume], capture_output=True).returncode == 0
 
 
+OWNER_LABEL = 'icmstack.root'
+
+
+def owner_labels(profile: Profile) -> list[str]:
+    """The ``docker run`` arguments that mark a container as this root's. Names carry only the profile, and two roots
+    (a test's temporary one, the real one) can both have a profile called ``default``; the label tells them apart, so
+    that stopping what one root started never reaches the other's containers."""
+    return ['--label', f'{OWNER_LABEL}={profile.dir.parent}']
+
+
+def owned_containers(profile: Profile) -> list[str]:
+    """Ids of the containers that carry this profile's name and this root's ownership label."""
+    done = subprocess.run(['docker', 'ps', '-aq', '--filter', f'name=^icmstack-{profile.name}-', '--filter', f'label={OWNER_LABEL}={profile.dir.parent}'],
+                          capture_output=True, text=True)
+    return done.stdout.split()
+
+
 class Container:
-    """A docker container the tool owns, named ``icmstack-<profile>-<component>``."""
+    """A docker container the tool owns, named ``icmstack-<profile>-<component>`` and labelled with the root."""
 
     def __init__(self, component: str, profile: Profile):
         self.name = f'icmstack-{profile.name}-{component}'
+        self.labels = owner_labels(profile)
 
     def running(self) -> bool:
         done = subprocess.run(['docker', 'inspect', '-f', '{{.State.Running}}', self.name], capture_output=True, text=True)
@@ -115,7 +133,7 @@ class Container:
     def run(self, image: str, args: list[str] = (), *, ports: dict[str, str] | None = None, volumes: dict[str, str] | None = None,
             network: str | None = None, extra: list[str] = (), entrypoint: list[str] = ()) -> None:
         subprocess.run(['docker', 'rm', '-f', self.name], capture_output=True)
-        cmd = ['docker', 'run', '-d', '--name', self.name]
+        cmd = ['docker', 'run', '-d', '--name', self.name, *self.labels]
         if network:
             cmd += ['--network', network]
         for host, inner in (ports or {}).items():

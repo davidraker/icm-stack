@@ -156,12 +156,13 @@ def container_stop(name: str) -> bool:
     return existed
 
 
-def start_server(name: str, cert_dir: Path, fixture: Path, port: int, admin_port: int, capture_dir: Path | None = None, timeout: float = 30.0) -> None:
+def start_server(name: str, cert_dir: Path, fixture: Path, port: int, admin_port: int, capture_dir: Path | None = None, timeout: float = 30.0,
+                 labels: list[str] = ()) -> None:
     """The Go server on 127.0.0.1:port, admin API on admin_port, seeded with the fixture; SSL_CERT_FILE makes its
     notifier trust the CA that signed the platform's receiver certificate."""
     subprocess.run(['docker', 'rm', '-f', name], capture_output=True)
     user = f'{os.getuid()}:{os.getgid()}'
-    cmd = ['docker', 'run', '-d', '--name', name, '--network', 'host', '-u', user, '-e', 'HOME=/tmp', '-e', 'SSL_CERT_FILE=/tls/ca.crt',
+    cmd = ['docker', 'run', '-d', '--name', name, *labels, '--network', 'host', '-u', user, '-e', 'HOME=/tmp', '-e', 'SSL_CERT_FILE=/tls/ca.crt',
            '-v', f'{cert_dir}:/tls:ro', '-v', f'{fixture.parent}:/fix:ro', '-e', 'SEP2_CERT_DIR=/tls', '-e', f'SEP2_ADDR=127.0.0.1:{port}',
            '-e', f'SEP2_ADMIN_LISTEN=127.0.0.1:{admin_port}', '-e', f'SEP2_ADMIN_KEY={ADMIN_KEY}', '-e', f'SEP2_PEN={PEN}',
            '-e', 'SEP2_NOTIFICATION_ALLOW_LOOPBACK=true', '-e', f'SEP2_BOOT_FIXTURE=/fix/{fixture.name}']
@@ -196,10 +197,11 @@ def create_control(admin_port: int, max_lim_w: int, duration: int = 120) -> str:
     return admin(admin_port, 'POST', '/api/der/controls', body)['mRID']
 
 
-def start_client(name: str, cert_dir: Path, server_url: str, pin: int, notify_port: int, timescale: int = 30, report_interval: int = 5) -> None:
+def start_client(name: str, cert_dir: Path, server_url: str, pin: int, notify_port: int, timescale: int = 30, report_interval: int = 5,
+                 labels: list[str] = ()) -> None:
     """The Go inverterclient (a DER client with a built-in PV simulator) against the server the platform serves."""
     subprocess.run(['docker', 'rm', '-f', name], capture_output=True)
-    _docker(['docker', 'run', '-d', '--name', name, '--network', 'host', '-u', f'{os.getuid()}:{os.getgid()}', '-v', f'{cert_dir}:/tls:ro', CLIENT_IMAGE,
+    _docker(['docker', 'run', '-d', '--name', name, *labels, '--network', 'host', '-u', f'{os.getuid()}:{os.getgid()}', '-v', f'{cert_dir}:/tls:ro', CLIENT_IMAGE,
              '--server', server_url, '--cert', '/tls/goclient.crt', '--key', '/tls/goclient.key', '--ca', '/tls/ca.crt', '--csip', '--pin', str(pin),
              '--scenario', 'normal', '--timescale', str(timescale), '--tick', '1s', '--report-interval', f'{report_interval}s',
              '--notify-listen', f'127.0.0.1:{notify_port}'])

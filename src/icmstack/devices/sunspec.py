@@ -197,8 +197,10 @@ def main(argv=None) -> int:
           + (', SunSpec model map (scannable)' if device.scannable else ', points only (the registry is not a SunSpec model chain; a scan finds nothing)')
           + (f', live readings every {args.period} s' if args.live else ', static readings'), flush=True)
     import math
-    live = [(name, base, swing, period) for name, base, swing, period in (('701_W', 4000, 600, 180), ('701_Var', 300, 80, 240), ('701_Hz', 6000, 3, 60), ('701_VL1', 2400, 20, 120))
-            if name in device.table.points]      # raw register values; the scale factors in the registry apply (Hz x0.01, V x0.1)
+    # Raw register values, with the registry's scale factors in mind: 701_W_SF 0 (W as is), 701_Var_SF 0, 701_Hz_SF -3
+    # (60000 is 60.000 Hz), 701_V_SF -1 (2400 is 240.0 V). The waves stay within a plausible band of each.
+    live = [(name, base, swing, period) for name, base, swing, period in (('701_W', 4000, 600, 180), ('701_Var', 300, 80, 240), ('701_Hz', 60000, 30, 60), ('701_VL1', 2400, 20, 120))
+            if name in device.table.points]
     t = 0.0
     try:
         while True:

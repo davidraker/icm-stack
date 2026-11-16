@@ -81,11 +81,21 @@ def main(argv=None) -> int:
             summary = f' W={w} Hz={hz}'
         say(f'RECEIVED {message.topic} as {candidate}:{summary} {json.dumps(decoded)[:300]}')
 
+    def on_connect(client, userdata, flags, reason_code, properties):
+        # Subscribed on every connect, not once: the broker forgets a clean session's subscriptions when it restarts,
+        # and paho reconnects by itself, so a one-time subscribe would leave the party silent after a broker restart.
+        client.subscribe(args.subscribe, qos=1)
+        say(f'connected to {args.host}:{args.port}, subscribed to {args.subscribe}')
+
+    def on_disconnect(client, userdata, flags, reason_code, properties):
+        say(f'disconnected from the broker ({reason_code}); reconnecting')
+
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=args.client_id)
     client.on_message = on_message
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.connect(args.host, args.port, keepalive=30)
     client.loop_start()
-    client.subscribe(args.subscribe, qos=1)
     say(f'openfmb party: broker {args.host}:{args.port}. Simulates another DER: publishes its own {proto} on {topic} every {args.interval} s ("own reading" lines). Logs what anyone else publishes under {args.subscribe} ("RECEIVED" lines): that is where the platform\'s aliases appear.')
     control_topic = f'openfmb/{args.family}module/{profile}ControlProfile/{args.control_mrid}'
     last_control = None

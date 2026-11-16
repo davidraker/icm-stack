@@ -199,14 +199,15 @@ def add_question_options(parser, questions: list[Question]) -> None:
         if q.key in seen:
             continue
         seen.add(q.key)
+        text = (q.help or q.text).replace('%', '%%')      # argparse formats help with %, so a prompt's "(%)" has to be escaped
         if q.secret:
-            parser.add_argument(q.option + '-file', dest=q.key + '_file', metavar='PATH', help=f'{q.help or q.text} (read from a file; or set {q.env})')
+            parser.add_argument(q.option + '-file', dest=q.key + '_file', metavar='PATH', help=f'{text} (read from a file; or set {q.env})')
         elif q.kind == 'bool':
             import argparse
-            parser.add_argument(q.option, dest=q.key, action=argparse.BooleanOptionalAction, default=None, help=f'{q.help or q.text} (or {q.env})')
+            parser.add_argument(q.option, dest=q.key, action=argparse.BooleanOptionalAction, default=None, help=f'{text} (or {q.env})')
         else:
             parser.add_argument(q.option, dest=q.key, default=None, metavar=q.kind.upper() if q.kind != 'choice' else '|'.join(map(str, q.choices)),
-                                help=f'{q.help or q.text} (or {q.env})')
+                                help=f'{text} (or {q.env})')
 
 
 def cli_answers(namespace, questions: list[Question]) -> dict[str, Any]:

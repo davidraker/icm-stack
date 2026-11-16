@@ -226,3 +226,15 @@ def test_openfmb_party_addresses_controls_to_the_der_it_observes():
             observed.append('late-4')
     assert control_target(None, observed, wait=5.0, sleep=sleep, clock=lambda: now[0]) == 'late-4' and now[0] < 5.0
     assert control_target(None, [], wait=1.0, sleep=lambda s: now.__setitem__(0, now[0] + s), clock=lambda: now[0]) == WIRED_MRID
+
+
+def test_every_subcommand_renders_its_help(capsys):
+    """A question prompt may contain a percent sign ("Active power limit (%)"); argparse formats help with %, so the
+    help of every subcommand that carries the questions must still render."""
+    from icmstack.cli import Cli
+    for command in ('up', 'start', 'restart', 'register', 'install'):
+        with pytest.raises(SystemExit) as e:
+            Cli(out=lambda s: None).main([command, '--help'])
+        assert e.value.code == 0
+        out = capsys.readouterr().out
+        assert '--openfmb-control-mrid' in out and 'limit (%)' in out, command

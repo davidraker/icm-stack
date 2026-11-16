@@ -122,9 +122,10 @@ class OpenFmbParty(ProcessDevice):
     Q_MRID = Question('openfmb_mrid', 'Device mRID in the profiles', default='7d1a2b3c-0000-4000-8000-000000000001')
     Q_INTERVAL = Question('openfmb_interval', 'Seconds between readings (0: publish nothing)', default=5, kind='float')
     Q_CONTROL = Question('openfmb_control_limit', 'Active power limit (%) to publish as a SolarControlProfile at start, empty: none', default='')
+    Q_CONTROL_MRID = Question('openfmb_control_mrid', 'mRID the control is addressed to, empty: the DER whose readings the party receives', default='')
 
     def questions(self):
-        return [self.Q_FAMILY, self.Q_MRID, self.Q_INTERVAL, self.Q_CONTROL]
+        return [self.Q_FAMILY, self.Q_MRID, self.Q_INTERVAL, self.Q_CONTROL, self.Q_CONTROL_MRID]
 
     def install(self, ctx: Context) -> None:
         self.check_requirements()
@@ -150,6 +151,8 @@ class OpenFmbParty(ProcessDevice):
         args = ['--host', host, '--port', str(port), '--family', a['openfmb_family'], '--mrid', a['openfmb_mrid'], '--interval', str(a['openfmb_interval'])]
         if a.get('openfmb_control_limit') not in (None, ''):
             args += ['--control-limit', str(a['openfmb_control_limit'])]
+        if a.get('openfmb_control_mrid') not in (None, ''):
+            args += ['--control-mrid', str(a['openfmb_control_mrid'])]
         return args
 
     def detail(self, ctx):

@@ -14,6 +14,32 @@ import time
 READING_PROTO = {'solar': 'solarmodule.SolarReadingProfile', 'ess': 'essmodule.ESSReadingProfile'}
 CONTROL_PROTO = {'solar': 'solarmodule.SolarControlProfile', 'ess': 'essmodule.ESSControlProfile'}
 DEFAULT_MRID = '7d1a2b3c-0000-4000-8000-000000000001'
+WIRED_MRID = '7d1a2b3c-0000-4000-8000-000000000011'       # the inverter's OpenFMB identity when "icmstack wire" made the alias
+
+
+def observed_mrid(message_topic: str, own_topic: str) -> str | None:
+    """The mRID of a reading profile someone else publishes (openfmb/<module>/<...>ReadingProfile/<mrid>), else None."""
+    parts = message_topic.split('/')
+    if message_topic != own_topic and len(parts) == 4 and parts[0] == 'openfmb' and parts[2].endswith('ReadingProfile'):
+        return parts[3]
+    return None
+
+
+def control_target(explicit: str | None, observed: list[str], wait: float = 0.0, family: str = 'solar', sleep=time.sleep, clock=time.monotonic) -> str:
+    """The mRID a control is addressed to: the one given, else the DER whose readings the party has received (waiting up to
+    ``wait`` seconds for one, since a control addresses a device one observes), else the mRID the wiring tool uses."""
+    if explicit:
+        return explicit
+    deadline = clock() + wait
+    while not observed and clock() < deadline:
+        sleep(0.25)
+    if observed:
+        if len(observed) > 1:
+            say(f'several DERs publish readings ({", ".join(observed)}); the control goes to the latest, {observed[-1]}; --control-mrid picks another')
+        return observed[-1]
+    say(f'no {family} reading from another publisher seen in {wait:.0f} s; the control goes to {WIRED_MRID}, the mRID "icmstack wire" uses '
+        '(--control-mrid sets another, e.g. the mRID of the alias made on the Resources tab)')
+    return WIRED_MRID
 
 
 def reading_payload(family: str, mrid: str, w: float, var: float, hz: float, phase_v: float) -> dict:
@@ -48,8 +74,10 @@ def main(argv=None) -> int:
     p.add_argument('--interval', type=float, default=5.0, help='seconds between readings; 0 publishes nothing')
     p.add_argument('--client-id', default='icmstack-openfmb-party')
     p.add_argument('--control-limit', type=float, default=None, help='publish a control profile limiting active power to this percent on the control topic of --control-mrid')
-    p.add_argument('--control-mrid', default='7d1a2b3c-0000-4000-8000-000000000011', help='mRID of the platform\'s alias the control is addressed to')
+    p.add_argument('--control-mrid', default=None, help='mRID the control is addressed to; default: the DER whose readings the party receives '
+                   f'(the platform\'s alias of the inverter), else {WIRED_MRID} (the mRID "icmstack wire" uses)')
     p.add_argument('--control-every', type=float, default=0, help='repeat the control every N seconds (0: once at start)')
+    p.add_argument('--control-wait', type=float, default=15.0, help='seconds to wait for a reading from the DER before addressing a control to it')
     args = p.parse_args(argv)
     try:
         import paho.mqtt.client as mqtt
@@ -61,9 +89,14 @@ def main(argv=None) -> int:
     topic = args.topic or f'openfmb/{args.family}module/{profile}ReadingProfile/{args.mrid}'
     proto, control = READING_PROTO[args.family], CONTROL_PROTO[args.family]
 
+    observed: list[str] = []      # mRIDs of the reading profiles others publish, latest last: the DERs the party sees
+
     def on_message(client, userdata, message):
         if message.topic == topic:
             return
+        seen = observed_mrid(message.topic, topic)
+        if seen and seen not in observed:
+            observed.append(seen)
         # Protobuf decodes leniently (a reading parses as a control with unknown fields), so the profile is taken from
         # the topic, OpenFMB's convention: openfmb/<module>/<Profile>/<mrid>.
         parts = message.topic.split('/')
@@ -97,11 +130,12 @@ def main(argv=None) -> int:
     client.connect(args.host, args.port, keepalive=30)
     client.loop_start()
     say(f'openfmb party: broker {args.host}:{args.port}. Simulates another DER: publishes its own {proto} on {topic} every {args.interval} s ("own reading" lines). Logs what anyone else publishes under {args.subscribe} ("RECEIVED" lines): that is where the platform\'s aliases appear.')
-    control_topic = f'openfmb/{args.family}module/{profile}ControlProfile/{args.control_mrid}'
     last_control = None
 
     def publish_control(limit: float):
-        client.publish(control_topic, encode(control, control_payload(args.family, args.control_mrid, limit)), qos=1)
+        mrid = control_target(args.control_mrid, observed, wait=args.control_wait, family=args.family)
+        control_topic = f'openfmb/{args.family}module/{profile}ControlProfile/{mrid}'
+        client.publish(control_topic, encode(control, control_payload(args.family, mrid, limit)), qos=1)
         say(f'published control limit {limit} % on {control_topic}')
     n = 0
     try:

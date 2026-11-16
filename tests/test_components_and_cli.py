@@ -205,3 +205,24 @@ def test_sunspec_device_serves_the_model_map_a_scan_expects():
         assert d.models[701][0].W.value == device.get_point('701_W')
     finally:
         device.stop()
+
+
+def test_openfmb_party_addresses_controls_to_the_der_it_observes():
+    """The control's mRID is the one given, else the DER whose readings the party receives (the platform's alias of the
+    inverter, whatever mRID the Resources tab gave it), else the wiring tool's fixed mRID."""
+    from icmstack.devices.openfmb_party import DEFAULT_MRID, WIRED_MRID, control_target, observed_mrid
+    own = f'openfmb/solarmodule/SolarReadingProfile/{DEFAULT_MRID}'
+    assert observed_mrid(own, own) is None
+    assert observed_mrid('openfmb/solarmodule/SolarReadingProfile/e1d1-2', own) == 'e1d1-2'
+    assert observed_mrid('openfmb/solarmodule/SolarControlProfile/e1d1-2', own) is None       # a control is not a DER's reading
+    assert control_target('given', ['e1d1-2']) == 'given'
+    assert control_target(None, ['e1d1-2', 'f2f2-3']) == 'f2f2-3'
+    now = [0.0]
+    observed: list[str] = []
+
+    def sleep(s):
+        now[0] += s
+        if now[0] >= 1.0:
+            observed.append('late-4')
+    assert control_target(None, observed, wait=5.0, sleep=sleep, clock=lambda: now[0]) == 'late-4' and now[0] < 5.0
+    assert control_target(None, [], wait=1.0, sleep=lambda s: now.__setitem__(0, now[0] + s), clock=lambda: now[0]) == WIRED_MRID

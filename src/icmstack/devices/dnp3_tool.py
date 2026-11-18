@@ -99,20 +99,37 @@ def parse_curve(text: str) -> list[tuple[float, float]]:
     return points
 
 
-def with_volt_var_curve(profile: dict, points: list[tuple[float, float]], number: int = 1) -> dict:
-    """A copy of the profile whose curves are one Volt-Var curve (type 2, X in percent of VRef, Y in percent of max VArs)
-    the control station writes as curve ``number`` through the edit buffer (select, header, pairs: IEEE 1815.2 6.1.3), with
-    the Volt-Var Curve Index (AI 297, so the station writes AO 217) set to that number. The profile's own curves (the
-    ride-through curves of the test tool) are replaced: the showroom's served outstation stores four curves."""
+def curve_buffer_indexes(table: str, points: int) -> set[int]:
+    """The IEEE 1815.2 curve edit buffer for a curve of ``points`` pairs: selector, type, number of points, X and Y units,
+    then the pairs; AO 244 to 248 + 2n written, AI 328 to 332 + 2n read back."""
+    start = 244 if table == 'AO' else 328
+    return set(range(start, start + 5 + 2 * points))
+
+
+def with_volt_var_curve(profile: dict, points: list[tuple[float, float]], number: int = 1, template: dict | None = None) -> dict:
+    """A copy of the profile whose curves are one Volt-Var curve the control station writes as curve ``number`` through
+    the edit buffer (select, header, pairs: IEEE 1815.2 6.1.3), with the Volt-Var Curve Index (AI 297, so the station
+    writes AO 217) set to that number. X is voltage in volts (units 29, one volt per count), Y is VArs as percent of
+    maximum VArs (units 2, a tenth of a percent per count), the units and scaling the standard's curve tables give the
+    Volt-Var type and the tool validates. ``template`` is a curve of the tool's own profile
+    (``load_profile()['AI']['curves'][0]``), whose point records carry every field the tool's parser requires; the
+    profile's own curves (the ride-through curves) are replaced."""
     p = copy.deepcopy(profile)
-    point = lambda index, value, name: {'point_index': index, 'value': value, 'multiplier': 1.0, 'offset': 0.0, 'name': name}  # noqa: E731
-    curve = {'curve_type': point(329, 2, 'Curve Type'), 'number_of_points': point(330, len(points), 'Curve Number of Points'),
-             'x_units': point(331, 129, 'Independent (X-Value) Units for Curve'), 'y_units': point(332, 2, 'Dependent (Y-Value) Units for Curve'),
-             'x_values': [point(333 + 2 * i, x, f'Curve Point {i + 1} X-Value') for i, (x, _) in enumerate(points)],
-             'y_values': [point(334 + 2 * i, y, f'Curve Point {i + 1} Y-Value') for i, (_, y) in enumerate(points)]}
-    section = p['AI']
-    if isinstance(section, dict):
-        section['curves'] = [curve] if number == 1 else [dict(curve_type=point(329, 0, 'Curve Type'))] * (number - 1) + [curve]
+    template = copy.deepcopy(template or ((profile['AI'].get('curves') or [None])[0] if isinstance(profile.get('AI'), dict) else None))
+    if not template:
+        raise ValueError('a curve template from the full profile is needed to write a curve the tool can parse')
+
+    def point(record: dict, index: int, value: float, name: str, multiplier: float = 1.0, low: int = 0, high: int = 2147483647) -> dict:
+        # minimum and maximum are in transmission counts, as the tool's curve scaling tables state them
+        return {**record, 'point_index': index, 'value': value, 'name': name, 'multiplier': multiplier, 'offset': 0.0, 'minimum': low, 'maximum': high}
+    x_record, y_record = template['x_values'][0], template['y_values'][0]
+    curve = {'curve_type': point(template['curve_type'], 329, 2, 'Curve Type', high=100),
+             'number_of_points': point(template['number_of_points'], 330, len(points), 'Curve Number of Points', high=100),
+             'x_units': point(template['x_units'], 331, 29, 'Independent (X-Value) Units for Curve', high=255),
+             'y_units': point(template['y_units'], 332, 2, 'Dependent (Y-Value) Units for Curve', high=255),
+             'x_values': [point(x_record, 333 + 2 * i, x, f'Curve Point {i + 1} X-Value') for i, (x, _) in enumerate(points)],
+             'y_values': [point(y_record, 334 + 2 * i, y, f'Curve Point {i + 1} Y-Value', multiplier=0.1, low=-1000, high=1000) for i, (_, y) in enumerate(points)]}
+    p['AI']['curves'] = [curve]
     try:
         widen(p, 297, number)                      # the station writes AO 217 to the expected value of AI 297
     except KeyError:

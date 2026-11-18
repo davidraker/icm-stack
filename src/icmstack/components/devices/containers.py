@@ -140,8 +140,8 @@ class Dnp3Master(Dnp3Base):
     Q_MASTER = Question('dnp3_served_master_address', 'Served master address', default=2, kind='int')
     Q_TOPIC = Question('dnp3_served_topic', 'Topic of the outstation the platform serves for the control station (devices/<topic>)', default='icm/dnp3/served')
     Q_LIMIT = Question('dnp3_master_limit', 'Active power limit (%) the control station keeps writing to AO 87, empty: it only reads', default='')
-    Q_VOLT_VAR = Question('dnp3_master_volt_var', 'Volt-Var curve the control station writes as curve 1 and points Volt-Var at: V:Var pairs in percent, '
-                          'e.g. 92:44,98:0,102:0,108:-44; empty: none', default='')
+    Q_VOLT_VAR = Question('dnp3_master_volt_var', 'Volt-Var curve the control station writes as curve 1 and points Volt-Var at: V:Var pairs, volts and '
+                          'percent of maximum VArs, e.g. 221:44,235:0,245:0,259:-44; empty: none', default='')
 
     def questions(self):
         return [self.Q_PORT, self.Q_OUT, self.Q_MASTER, self.Q_TOPIC, self.Q_LIMIT, self.Q_VOLT_VAR]
@@ -167,13 +167,16 @@ class Dnp3Master(Dnp3Base):
             # Reads only the points the writes need: AO 87 (the active power limit) to the given value; the Volt-Var curve
             # through the edit buffer as curve 1, with Volt-Var pointed at it (AO 217 via AI 297) and enabled (BO 29 via BI 81).
             ai, ao, bi, bo = {148, 69}, {87}, {69}, {17}
+            curve_points = []
             if volt_var not in (None, ''):
-                ai |= {297}; ao |= {217}; bi |= {81}; bo |= {29}
+                curve_points = dnp3_tool.parse_curve(str(volt_var))
+                # the curve index and its read-back, and the edit buffer the curve writer needs: selector, header, pairs
+                ai |= {297} | dnp3_tool.curve_buffer_indexes('AI', len(curve_points)); ao |= {217} | dnp3_tool.curve_buffer_indexes('AO', len(curve_points))
             profile = dnp3_tool.trimmed(profile, ai=ai, ao=ao, bi=bi, bo=bo)
             if limit not in (None, ''):
                 profile = dnp3_tool.with_stimulus(profile, ao_targets={87: float(limit)})
             if volt_var not in (None, ''):
-                profile = dnp3_tool.with_volt_var_curve(profile, dnp3_tool.parse_curve(str(volt_var)))
+                profile = dnp3_tool.with_volt_var_curve(profile, curve_points, template=dnp3_tool.load_profile()['AI']['curves'][0])
         dnp3_tool.start_control_station(self.container(ctx, profile), int(a['dnp3_served_port']),
                                         int(a['dnp3_served_outstation_address']), int(a['dnp3_served_master_address']))
         extras = [f'writing AO 87 = {limit}' if limit not in (None, '') else '', f'writing Volt-Var curve 1 = {volt_var}' if volt_var not in (None, '') else '']

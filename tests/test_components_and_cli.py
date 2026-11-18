@@ -238,3 +238,39 @@ def test_every_subcommand_renders_its_help(capsys):
         assert e.value.code == 0
         out = capsys.readouterr().out
         assert '--openfmb-control-mrid' in out and 'limit (%)' in out, command
+
+
+def test_volt_var_curve_for_the_control_station():
+    """The control station writes the profile's curves through the edit buffer and every AO to its associated AI's expected
+    value: a Volt-Var curve becomes curve 1 and AI 297 = 1 makes it write the Volt-Var Curve Index to 1."""
+    from icmstack.devices import dnp3_tool
+    pts = dnp3_tool.parse_curve('92:44, 98:0,102:0,108:-44')
+    assert pts == [(92.0, 44.0), (98.0, 0.0), (102.0, 0.0), (108.0, -44.0)]
+    with pytest.raises(ValueError, match='at least two'):
+        dnp3_tool.parse_curve('92:44')
+    profile = {'AI': {'points': [{'point_index': 297, 'value': 0.0, 'minimum': 0, 'maximum': 100}], 'curves': [{'curve_type': {'point_index': 329, 'value': 9}}]},
+               'AO': [{'point_index': 217}], 'BI': [], 'BO': []}
+    out = dnp3_tool.with_volt_var_curve(profile, pts)
+    (curve,) = out['AI']['curves']
+    assert curve['curve_type']['value'] == 2 and curve['number_of_points']['value'] == 4 and curve['x_units']['value'] == 129 and curve['y_units']['value'] == 2
+    assert [x['point_index'] for x in curve['x_values']] == [333, 335, 337, 339] and curve['y_values'][3]['value'] == -44.0
+    assert dnp3_tool.get_point(out, 'AI', 297)['value'] == 1 and profile['AI']['curves'][0]['curve_type']['value'] == 9, 'the input profile is untouched'
+
+
+def test_bundled_served_outstation_stores_its_curves():
+    """The bundled served registry comes from the builder (tools/generate_dnp3_served.py): store rows for four curves,
+    a selector row, no buffer rows, and the declaration carries the rule points the proxy applies."""
+    import csv, json
+    from icmstack.components.devices.containers import DATA
+    rows = list(csv.DictReader((DATA / 'registries' / 'dnp3_der_served.dnp3.csv').open()))
+    store = [r for r in rows if r['mux_area']]
+    assert len(store) == 1 + 4 * 12 and {r['mux_slot'] for r in store} == {'selector', '1', '2', '3', '4'}
+    assert not {r['volttron_point_name'] for r in rows if not r['mux_area']} & {'AO_244', 'AI_328', 'AO_249', 'AI_333'}
+    selector = next(r for r in store if r['mux_slot'] == 'selector')
+    assert (selector['index'], selector['readback_index']) == ('244', '328')
+    declaration = json.loads((DATA / 'service' / 'dnp3_der.presentation.json').read_text())
+    assert declaration['served_format'] == 'fake_dnp3_der_served' and len(declaration['formats']['fake_dnp3_der_served']['fields']) == len(rows)
+    assert 'DVVR.VVArCrv' in {r['uid'] for r in declaration['served_remote']['mux_areas']['curve']['references']}
+    assert declaration['served_equipment_specific_fields'] == {'ieee1815_2': {'curves_stored': 4}}
+    served_out = next(t for t in declaration['transforms'] if (t['input_format'], t['output_format']) == ('fake_dnp3_der_served', '1815.2.outputs'))
+    assert served_out['pattern']['curves']['3']['249'] == 'transform[curve3_X1]()'

@@ -26,7 +26,11 @@ def _register_device(ctx: Context, topic: str, registry_file: str, registry_name
     spec = _declared(declaration)
     fmt = spec['served_format'] if served else spec['client_format']
     store_csv(ctx, DRIVER, f'registry_configs/{registry_name}', DATA / 'registries' / registry_file)
-    store_json(ctx, DRIVER, f'devices/{topic}', device_entry(driver_type, registry_name, remote))
+    entry = device_entry(driver_type, registry_name, {**(spec.get('served_remote') or {} if served else {}), **remote})
+    if served and spec.get('served_equipment_specific_fields'):
+        # how many curves and schedules the outstation stores behind its edit buffers (tools/generate_dnp3_served.py)
+        entry['equipment_specific_fields'] = spec['served_equipment_specific_fields']
+    store_json(ctx, DRIVER, f'devices/{topic}', entry)
     transforms = [t for t in spec['transforms'] if fmt in (t.get('input_format'), t.get('output_format'))]
     merge_service_config(ctx, SERVICE, {fmt: spec['formats'][fmt]}, transforms, [canonical_mapping(topic, fmt)])
     return fmt
@@ -136,9 +140,11 @@ class Dnp3Master(Dnp3Base):
     Q_MASTER = Question('dnp3_served_master_address', 'Served master address', default=2, kind='int')
     Q_TOPIC = Question('dnp3_served_topic', 'Topic of the outstation the platform serves for the control station (devices/<topic>)', default='icm/dnp3/served')
     Q_LIMIT = Question('dnp3_master_limit', 'Active power limit (%) the control station keeps writing to AO 87, empty: it only reads', default='')
+    Q_VOLT_VAR = Question('dnp3_master_volt_var', 'Volt-Var curve the control station writes as curve 1 and points Volt-Var at: V:Var pairs in percent, '
+                          'e.g. 92:44,98:0,102:0,108:-44; empty: none', default='')
 
     def questions(self):
-        return [self.Q_PORT, self.Q_OUT, self.Q_MASTER, self.Q_TOPIC, self.Q_LIMIT]
+        return [self.Q_PORT, self.Q_OUT, self.Q_MASTER, self.Q_TOPIC, self.Q_LIMIT, self.Q_VOLT_VAR]
 
     def install(self, ctx: Context) -> None:
         self.check_tool()
@@ -156,13 +162,22 @@ class Dnp3Master(Dnp3Base):
         if not wait_for(lambda: port_open('127.0.0.1', int(a['dnp3_served_port'])), 30):
             raise NotReady(f'dnp3-master: nothing listens on 127.0.0.1:{a["dnp3_served_port"]}; is the driver\'s served outstation up?')
         profile = dnp3_tool.load_profile()
-        limit = a.get('dnp3_master_limit')
-        if limit not in (None, ''):
-            # Reads only the points the limit needs, and writes AO 87 (the active power limit) to the given value.
-            profile = dnp3_tool.with_stimulus(dnp3_tool.trimmed(profile, ai=(148, 69), ao=(87,), bi=(69,), bo=(17,)), ao_targets={87: float(limit)})
+        limit, volt_var = a.get('dnp3_master_limit'), a.get('dnp3_master_volt_var')
+        if limit not in (None, '') or volt_var not in (None, ''):
+            # Reads only the points the writes need: AO 87 (the active power limit) to the given value; the Volt-Var curve
+            # through the edit buffer as curve 1, with Volt-Var pointed at it (AO 217 via AI 297) and enabled (BO 29 via BI 81).
+            ai, ao, bi, bo = {148, 69}, {87}, {69}, {17}
+            if volt_var not in (None, ''):
+                ai |= {297}; ao |= {217}; bi |= {81}; bo |= {29}
+            profile = dnp3_tool.trimmed(profile, ai=ai, ao=ao, bi=bi, bo=bo)
+            if limit not in (None, ''):
+                profile = dnp3_tool.with_stimulus(profile, ao_targets={87: float(limit)})
+            if volt_var not in (None, ''):
+                profile = dnp3_tool.with_volt_var_curve(profile, dnp3_tool.parse_curve(str(volt_var)))
         dnp3_tool.start_control_station(self.container(ctx, profile), int(a['dnp3_served_port']),
                                         int(a['dnp3_served_outstation_address']), int(a['dnp3_served_master_address']))
-        ctx.out(f'{self.name}: polling 127.0.0.1:{a["dnp3_served_port"]}' + (f', writing AO 87 = {limit}' if limit not in (None, '') else ''))
+        extras = [f'writing AO 87 = {limit}' if limit not in (None, '') else '', f'writing Volt-Var curve 1 = {volt_var}' if volt_var not in (None, '') else '']
+        ctx.out(f'{self.name}: polling 127.0.0.1:{a["dnp3_served_port"]}' + ''.join(f', {e}' for e in extras if e))
 
     def status(self, ctx: Context) -> Status:
         installed = ctx.profile.is_installed(self.name)

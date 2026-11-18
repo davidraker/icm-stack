@@ -86,6 +86,40 @@ def with_stimulus(profile: dict, analog_values: dict[int, float] | None = None, 
     return p
 
 
+def parse_curve(text: str) -> list[tuple[float, float]]:
+    """``'92:44,98:0,102:0,108:-44'`` -> [(92, 44), (98, 0), (102, 0), (108, -44)]: X:Y pairs, comma separated."""
+    points = []
+    for item in text.replace(';', ',').split(','):
+        if not item.strip():
+            continue
+        x, _, y = item.partition(':')
+        points.append((float(x), float(y)))
+    if len(points) < 2:
+        raise ValueError(f'a curve needs at least two X:Y pairs, got {text!r}')
+    return points
+
+
+def with_volt_var_curve(profile: dict, points: list[tuple[float, float]], number: int = 1) -> dict:
+    """A copy of the profile whose curves are one Volt-Var curve (type 2, X in percent of VRef, Y in percent of max VArs)
+    the control station writes as curve ``number`` through the edit buffer (select, header, pairs: IEEE 1815.2 6.1.3), with
+    the Volt-Var Curve Index (AI 297, so the station writes AO 217) set to that number. The profile's own curves (the
+    ride-through curves of the test tool) are replaced: the showroom's served outstation stores four curves."""
+    p = copy.deepcopy(profile)
+    point = lambda index, value, name: {'point_index': index, 'value': value, 'multiplier': 1.0, 'offset': 0.0, 'name': name}  # noqa: E731
+    curve = {'curve_type': point(329, 2, 'Curve Type'), 'number_of_points': point(330, len(points), 'Curve Number of Points'),
+             'x_units': point(331, 129, 'Independent (X-Value) Units for Curve'), 'y_units': point(332, 2, 'Dependent (Y-Value) Units for Curve'),
+             'x_values': [point(333 + 2 * i, x, f'Curve Point {i + 1} X-Value') for i, (x, _) in enumerate(points)],
+             'y_values': [point(334 + 2 * i, y, f'Curve Point {i + 1} Y-Value') for i, (_, y) in enumerate(points)]}
+    section = p['AI']
+    if isinstance(section, dict):
+        section['curves'] = [curve] if number == 1 else [dict(curve_type=point(329, 0, 'Curve Type'))] * (number - 1) + [curve]
+    try:
+        widen(p, 297, number)                      # the station writes AO 217 to the expected value of AI 297
+    except KeyError:
+        pass
+    return p
+
+
 def trimmed(profile: dict, ai=(), ao=(), bi=(), bo=()) -> dict:
     """A copy keeping only the listed point indices per table: a control station on an AI-only profile reads and never
     writes; one with AO 87 and BO 17 writes just those."""

@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from icmstack.cli import Cli
 from icmstack.components import default_registry
@@ -281,3 +282,18 @@ def test_bundled_served_outstation_stores_its_curves():
     assert declaration['served_equipment_specific_fields'] == {'ieee1815_2': {'curves_stored': 4}}
     served_out = next(t for t in declaration['transforms'] if (t['input_format'], t['output_format']) == ('fake_dnp3_der_served', '1815.2.outputs'))
     assert served_out['pattern']['curves']['3']['249'] == 'transform[curve3_X1]()'
+
+
+def test_logs_of_a_stopped_container_component_say_so(monkeypatch):
+    """docker answers "No such container" for a component that was never started; the tool says which it is and how to start it."""
+    from icmstack.components import default_registry
+    from icmstack.components.base import Context
+    from icmstack.profile import Profile
+    from icmstack.prompts import Answers
+    registry = default_registry()
+    profile = Profile('default', root=Path(__file__).parent / 'nope')
+    ctx = Context(profile, Answers(profile, yes=True, interactive=True), out=lambda s: None)
+    for name in ('dnp3-master', 'sep2-server'):
+        component = registry[name]
+        monkeypatch.setattr(type(component), 'running', lambda self, ctx: False)
+        assert component.logs(ctx) == f'{name} is not running; icmstack start {name}'

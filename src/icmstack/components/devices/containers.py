@@ -78,6 +78,8 @@ class Dnp3Base(ContainerDevice):
             ctx.out(f'{self.name}: stopped')
 
     def logs(self, ctx: Context, lines: int = 40) -> str:
+        if not self.running(ctx):
+            return f'{self.name} is not running; icmstack start {self.name}'    # docker's "No such container" says less
         return dnp3_tool.ANSI.sub('', sep2.container_logs(self.container_name(ctx), lines))
 
 
@@ -232,6 +234,8 @@ class Sep2Base(ContainerDevice):
             ctx.out(f'{self.name}: stopped')
 
     def logs(self, ctx: Context, lines: int = 40) -> str:
+        if not self.running(ctx):
+            return f'{self.name} is not running; icmstack start {self.name}'
         return sep2.container_logs(self.container_name(ctx), lines)
 
 

@@ -58,10 +58,13 @@ SHOWCASES: dict[str, Showcase] = {s.name: s for s in [
              'The Resource Bridge writes the inverter\'s readings into the DNP3 outstation the platform serves (SunSpec -> 1815.2 hub -> served DNP3 format); the external control station polls it.',
              'icmstack logs dnp3-master: the control station\'s reads show the inverter\'s W and Hz as AI 537 and 536 (scaled by the profile).',
              bridges=[{'name': 'sunspec>dnp3.served', 'source': ('device', 'sunspec_topic'), 'target': ('device', 'dnp3_served_topic')}]),
-    Showcase('dnp3-to-sunspec', 'A DNP3 control station\'s setpoint limits the SunSpec inverter', 'control', ('sunspec-device', 'dnp3-master'),
-             'The control station writes AO 87 (active power limit) on the served outstation; the Resource Bridge carries it to the inverter\'s limit points.',
-             'icmstack start dnp3-master --dnp3-master-limit 40 makes the control station write AO87; the inverter\'s 704_WMaxLimPct follows (vctl driver get <topic>/704_WMaxLimPct).',
-             bridges=[{'name': 'dnp3.served>sunspec', 'source': ('device', 'dnp3_served_topic'), 'target': ('device', 'sunspec_topic'), 'points': DNP3_CONTROL_POINTS}]),
+    Showcase('dnp3-to-sunspec', 'A DNP3 control station\'s setpoint and Volt-Var curve reach the SunSpec inverter', 'control', ('sunspec-device', 'dnp3-master'),
+             'The control station writes AO 87 (active power limit) and a Volt-Var curve through the edit buffer of the served outstation; the Resource Bridge '
+             'merges what it knows of the outstation and carries the limit and the curve the Volt-Var index names to the inverter\'s 704 and 705 points.',
+             'icmstack start dnp3-master --dnp3-master-limit 40 --dnp3-master-volt-var 221:44,235:0,245:0,259:-44: the inverter\'s 704_WMaxLimPct follows the limit '
+             'and 705_Crv1_Pt1_V to Pt4_Var the curve (vctl driver get <topic>/705_Crv1_Pt1_V). Enabling Volt-Var (BO_29) locks the curve: the station\'s rewrites '
+             'are refused with AUTOMATION_INHIBIT while it is enabled.',
+             bridges=[{'name': 'dnp3.served>sunspec', 'source': ('device', 'dnp3_served_topic'), 'target': ('device', 'sunspec_topic'), 'delivery': {'kind': 'merge'}}]),
     Showcase('sunspec-to-sep2', 'SunSpec inverter readings reported to a 2030.5 utility server', 'telemetry', ('sunspec-device', 'sep2-server'),
              'The Resource Bridge feeds the platform\'s 2030.5 client device with the inverter\'s readings; the client posts MirrorMeterReadings to the Go server.',
              'The Go server\'s traffic capture under <profile>/sep2/capture grows with MirrorMeterReading posts; icmstack logs sep2-server shows the requests.',
@@ -93,6 +96,13 @@ def _end(ctx: Context, end) -> dict | list:
     topic = _topic(ctx, value)
     if not topic or f'devices/{topic}' not in list_entries(ctx, DRIVER):
         raise NotReady(f'the device for {value} ({topic or "no topic answered"}) is not registered')
+    # The resource that publishes the device, as the service names it: a device discovered from the UI has the UAI
+    # devices/<topic>, one registered by this tool <topic>. The bridge ends must name the resource, not the device.
+    service = get_json(ctx, SERVICE, 'config') or {}
+    for mapping in service.get('mappings', []):
+        resource = mapping.get('resource') or {}
+        if str(mapping.get('resource_type', '')).lower() in ('canonical', 'canon') and resource.get('rpc_topic') == f'devices/{topic}':
+            return list(mapping['uai'])
     return topic.split('/')
 
 
@@ -110,6 +120,8 @@ def wire(ctx: Context, names: list[str]) -> None:
             entry = {'name': b['name'], 'source': _end(ctx, b['source']), 'target': _end(ctx, b['target'])}
             if b.get('points'):
                 entry['points'] = list(b['points'])
+            if b.get('delivery'):
+                entry['delivery'] = dict(b['delivery'])    # a device source whose points arrive one at a time: merge them
             bridges.append(entry)
         outbound += ['/'.join(u) for u in s.outbound]
         inbound += ['/'.join(u) for u in s.inbound]

@@ -165,7 +165,8 @@ def test_every_showcase_wires_and_describes(stack, monkeypatch):
     assert set(bridges) == {'sunspec>openfmb.reading', 'openfmb.control>sunspec', 'sunspec>dnp3.served', 'dnp3.served>sunspec', 'sunspec>sep2', 'sep2>sunspec', 'sep2.served>openfmb.reading'}
     assert bridges['openfmb.control>sunspec']['source'] == {'uai': ['openfmb', 'solarmodule', 'SolarControlProfile', '7d1a2b3c-0000-4000-8000-000000000011'], 'bus': True}
     assert 'points' not in bridges['openfmb.control>sunspec'] and 'points' not in bridges['sunspec>dnp3.served']
-    assert bridges['dnp3.served>sunspec']['points'] == ['AO_87', 'BO_17'] and bridges['sep2>sunspec']['points'] == ['DERControl_opModMaxLimW']
+    assert 'points' not in bridges['dnp3.served>sunspec'] and bridges['dnp3.served>sunspec']['delivery'] == {'kind': 'merge'}, 'the curve rows arrive one at a time; everything the chain maps is relayed'
+    assert bridges['sep2>sunspec']['points'] == ['DERControl_opModMaxLimW']
     assert bridges['sunspec>dnp3.served']['target'] == ['icm', 'dnp3', 'served'] and bridges['sep2>sunspec']['source'] == ['icm', 'sep2', 'der']
     service = json.loads((store / 'platform.presentation' / 'config').read_text())
     aliases = {'/'.join(m['uai']): m for m in service['mappings'] if m['resource_type'] == 'alias'}

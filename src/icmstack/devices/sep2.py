@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import time
 import urllib.request
@@ -19,6 +20,9 @@ PEN = '40732'
 
 
 def images_present() -> dict[str, bool]:
+    """Which of the server and client images docker has; neither when there is no docker binary at all."""
+    if shutil.which('docker') is None:
+        return {image: False for image in (SERVER_IMAGE, CLIENT_IMAGE)}
     return {image: subprocess.run(['docker', 'image', 'inspect', image], capture_output=True).returncode == 0 for image in (SERVER_IMAGE, CLIENT_IMAGE)}
 
 

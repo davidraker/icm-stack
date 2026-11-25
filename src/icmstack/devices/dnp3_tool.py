@@ -8,6 +8,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -26,6 +27,8 @@ def available() -> tuple[bool, str]:
     repo = tool_repo()
     if repo is None or not (repo / 'data' / 'profiles' / 'full.json').is_file():
         return False, 'set IEEE1815_2_TEST_TOOL to a checkout of the IEEE 1815.2 test tool (its data/profiles/full.json is the DER profile)'
+    if shutil.which('docker') is None:
+        return False, 'docker is not on PATH: the reference outstation and control station run as containers'
     if subprocess.run(['docker', 'image', 'inspect', IMAGE], capture_output=True).returncode != 0:
         return False, f'docker image {IMAGE} is missing: build the test tool once with its compose file'
     if subprocess.run(['docker', 'volume', 'inspect', CACHE_VOLUME], capture_output=True).returncode != 0:
